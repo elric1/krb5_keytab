@@ -1,0 +1,202 @@
+.\"
+.\"
+.\" Blame: Roland Dowdeswell <elric@imrryr.org>
+.Dd August 31, 2007
+.Os
+.Dt KRB5_KEYTAB 8
+.Sh NAME
+.Nm krb5_keytab
+.Nd kerberos keytab management client
+.Sh SYNOPSIS
+.Nm
+.Op Fl AFfv
+.Op Fl p Ar proid
+.Op Fl L lib
+.Op Ar princ ...
+.Nm
+.Fl c
+.Op Fl AFfv
+.Op Fl p Ar proid
+.Op Fl L lib
+.Op Ar princ ...
+.Nm
+.Fl g
+.Op Fl v
+.Op Fl p Ar proid
+.Op Ar princ ...
+.Nm
+.Fl l
+.Op Fl v
+.Op Fl p Ar proid
+.Nm
+.Fl q
+.Op Fl v
+.Op Fl p Ar proid
+.Op Ar princ ...
+.Nm
+.Fl t
+.Op Fl v
+.Op Fl p Ar proid
+.Op Fl L lib
+.Op Ar princ ...
+.Sh DESCRIPTION
+.Nm
+will create, fetch or rotate the Kerberos keys and ensure that the
+correct keys are installed.
+.Pp
+In general,
+.Nm
+should be called in the start scripts of the server that requires the
+keytab.
+If run as the proid in question, it requires no arguments and will simply
+fetch all of the keys necessary.
+.Nm
+can also be run as root but in this case, it is necessary to specify the
+.Fl p Ar proid
+or the
+.Fl A
+flag.
+.Pp
+The
+.Ar princ
+arguments are Kerberos principals with the following completion rules:
+.Bl -enum
+.It
+If the realm is missing, then the default realm is appended.
+.It
+If the instance is missing then all hostname instances are appended,
+i.e.: if one supplies ``foo'' or ``foo@REALM'' on a machine with hostnames
+bar and baz then it will expand to the principals foo/bar@REALM and
+foo/baz@REALM.
+.El
+.Pp
+.Nm
+will then construct a connexion to a KDC and request the appropriate
+keys, creating or rotating them if necessary.
+If the keys need to be created or rotated then
+.Nm
+will need to connect to the master KDC.
+.Pp
+.Nm
+is designed to be run in the start logic of applications that require
+keytabs.
+There is no attempt made to persist keys across rebuilds or reboots and
+in fact, the assumption is that if a host is rebuilt and does not request
+a service key again then said service key is no longer being used and is
+eligible for removal.
+.Pp
+.Nm
+creates keys that are compatible with the Kerberos library specified by the
+optional
+.Fl L Ar library
+argument.
+The library should be specified as the Kerberos libraries that are used by
+the server which will use the keytab.
+If an incorrect library is specified then the keys created or generated may
+not be compatible with your server.
+The default library is specified in the configuration file.
+Specifying certain legacy libraries requires administrative privileges.
+.Pp
+Please see http://kerberossupport for more details about library
+compatibility.
+.Pp
+Please note that although,
+.Nm
+will create stronger keys, it will not [currently] modify existing keys if called on a machine which already has keys provisioned for a service.
+It will simply retrieve the existing keys from the KDC.
+.Pp
+The options are as follows:
+.Bl -tag -width indentxxxxxx
+.It Fl A
+specifies that
+.Nm
+will fetch the host keys for the machine.
+This requires that
+.Nm
+is run as root and will prompt for Kerberos admin credentials.
+.It Fl F
+will force the keytab to be rewritten and also implies
+.Fl f .
+.It Fl L Ar lib
+specifies that the Kerberos libraries that the server uses are
+.Ar lib .
+This information will be used to determine what encryption types are
+supported, so it is essential that this is correct.
+The default is mitkrb5/1.4 when creating new keys.
+When changing keys, the current encryption types will be preserved unless the
+.Fl L Ar library
+option is specified.
+.It Fl c
+change the keys.
+.It Fl f
+force contact with a KDC.
+By default,
+.Nm
+will not contact a KDC if the keytab tests correctly.
+This flag overrides this behaviour.
+Do not use this flag in any automated use, it is designed for
+human intervention only.
+.It Fl g
+will cause
+.Nm
+to read the current keytab and issue a list of commands that would generate
+an equivalent keytab under certain assumptions.
+.It Fl l
+lists the current keytab.
+This flag is for administrators only.
+.It Fl p Ar proid
+the proid for which keys are to be obtained.
+This option is only relevant for administrative users.
+.It Fl q
+will describe the keytab in a human readable format.
+.It Fl t
+tests if the specified keys in are compatible with the current library
+version as specified by the
+.Fl L Ar library
+option.
+.It Fl v
+increase the verbose level.
+.El
+.Sh EXIT STATUS
+.Nm
+exits 0 on success and >0 if an error occurred.
+.Sh FILES
+.Bl -tag -width indentxxxxxxxxxxxxxxxxxx -compact
+.It Pa /ms/dist/kerberos/etc/krb5_keytab.conf
+is the configration file for krb5_keytab.
+.El 
+.Sh EXAMPLES
+If running as an ID, to create a keytab for the default version of the
+Kerberos libraries containing all possible service principals configured
+for the host:
+.Bd -literal
+	$ krb5_keytab
+.Ed
+.Pp
+If only a certain principal needs to be created:
+.Bd -literal
+	$ krb5_keytab proid/hostname
+.Ed
+.Pp
+To test if a keytab contains keys that are compatible with a certain version
+of the Kerberos libraries:
+.Bd -literal
+	$ krb5_keytab -t -L mitkrb5/1.3
+.Ed
+.Pp
+Or to test if just a single principal has keys that are compatible with
+a certain version of the Kerberos libraries:
+.Bd -literal
+	$ krb5_keytab -t -L sunjdk/1.6 HTTP/host.example.com
+.Ed
+.Pp
+To generate a list of commands that would create a functionally equivalent
+keytab for a particular proid:
+.Bd -literal
+	$ krb5_keytab -g -p proid
+.Ed
+.Sh SEE ALSO
+.Xr knc 1 ,
+.Xr krb5_keytabd 8 .
+.Sh BUGS
+Key rotation is not yet implemented.

@@ -1,0 +1,53 @@
+.\"
+.\"
+.\" Blame: Roland Dowdeswell <elric@imrryr.org>
+.Dd October 5, 2009
+.Os
+.Dt KRB5_KEYTAB.CONF 5
+.Sh NAME
+.Nm krb5_keytab.conf
+.Nd configuration file for
+.Xr krb5_keytab 8
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Nm
+is the configuration file for
+.Xr krb5_keytab 8 .
+The syntax is a Perl snippet which is evaluated and is expected to
+set the following variables:
+.Bl -tag -width @allowed_enctypesxxx
+.It @admin_users
+is a list of users who are allowed to perform administrative functions.
+That is, they can operate on other user's keytabs and avoid the system
+encryption type policies.
+.It @allowed_enctypes
+is a list of acceptable encryption types that even administrative
+users cannot over-ride.
+.It $default_krb5_lib
+is the default Kerberos library version if it is not specified.
+.It %krb5_libs
+is a hash mapping Kerberos library versions to an array ref of supported
+encryption types.
+.It %krb5_lib_quirks
+is a hash mapping Kerberos library versions to an array ref of keytab
+management bugs (quirks) that must be considered when constructing or
+testing a keytab.
+.It %proid2service
+is a hash mapping proids to an array ref containing additional service
+principals that the proid may request to be placed in its keytab.
+This mechanism will eventually be replaced with a more general mechanism
+which allows for hostbased specification of this concept.
+.It %proid_libs
+is a hash mapping proids to an array ref containing a list of acceptable
+Kerberos libraries which the proid may use.
+Administrative users may not over-ride this restriction.
+.El
+.Pp
+Syntax errors will terminate parsing causing all subsequent configuration
+to be ignored and so it is critical that they not be present.
+.Sh SEE ALSO
+.Xr krb5_keytab 8 .
+.Sh AUTHORS
+.Nm
+was written by Roland C. Dowdeswell.
