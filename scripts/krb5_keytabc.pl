@@ -322,7 +322,7 @@ sub get_instances {
 # expand_princs takes an array ref representing a single princ and
 # returns a list of said array refs.  The expansion is:
 #
-#	1.  populate the realm as is1.morgan (hardcoded, bad.)
+#	1.  populate the realm if not specified,
 #
 #	2.  if the instance is not specified then generalise from
 #	    the global var @instances which is derived from
@@ -332,7 +332,10 @@ sub get_instances {
 sub expand_princs {
 	my ($pr) = @_;
 
-	$pr->[0] = "is1.morgan"	if $pr->[0] eq '';
+	if (!defined($pr->[0]) || $pr->[0] eq '') {
+		my $ctx = Krb5Admin::C::krb5_init_context();
+		$pr->[0] = Krb5Admin::C::krb5_get_realm($ctx);
+	}
 
 	if ($pr->[2] eq '') {
 		return map { [ $pr->[0], $pr->[1], $_ ] } @instances;
@@ -885,7 +888,9 @@ if (defined($opts{A})) {
 		last;
 	}
 
-	@princs = map { ['is1.morgan', 'host', $_ ] } (host_list(hostname()));
+	my $ctx = Krb5Admin::C::krb5_init_context();
+	my $def_realm = Krb5Admin::C::krb5_get_realm($ctx);
+	@princs = map { [$def_realm, 'host', $_ ] } (host_list(hostname()));
 	$proid = 'root';
 } else {
 
