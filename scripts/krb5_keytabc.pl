@@ -12,9 +12,9 @@ use Sys::Hostname;
 use Sys::Syslog;
 use Time::HiRes qw(gettimeofday);
 
-use Krb5_Admin::Client;
-use Krb5_Admin::Utils qw/host_list/;
-use Krb5_Admin::C::krb5_keytab;
+use Krb5Admin::Client;
+use Krb5Admin::Utils qw/host_list/;
+use Krb5Admin::C;
 
 # XXXrcd: just for testing:
 use Data::Dumper;
@@ -298,15 +298,15 @@ sub unparse_princ {
 }
 
 #
-# Munge the output of Krb5_Admin::C::read_kt into something
+# Munge the output of Krb5Admin::C::read_kt into something
 # that is a little easier for me to deal with:
 
 sub get_keys {
 	my ($kt) = @_;
-	my $ctx = Krb5_Admin::C::krb5_init_context();
+	my $ctx = Krb5Admin::C::krb5_init_context();
 
 	$kt = "FILE:/etc/krb5.keytab" if !defined($kt) || $kt eq '';
-	my @ktkeys = Krb5_Admin::C::read_kt($ctx, $kt);
+	my @ktkeys = Krb5Admin::C::read_kt($ctx, $kt);
 
 	for my $i (@ktkeys) {
 		$i->{enctype} = $enctypes{$i->{enctype}};
@@ -536,9 +536,9 @@ sub need_new_key {
 }
 
 sub mk_keys	{
-	my $ctx = Krb5_Admin::C::krb5_init_context();
+	my $ctx = Krb5Admin::C::krb5_init_context();
 
-	map {Krb5_Admin::C::krb5_make_a_key($ctx, $_)} @_;
+	map {Krb5Admin::C::krb5_make_a_key($ctx, $_)} @_;
 }
 
 sub ktuniq {
@@ -569,7 +569,7 @@ sub write_keys_internal {
 		vprint "Writing (" . $i->{princ} . ", " .
 		    $i->{kvno} . ", " . $i->{enctype} . ")\n";
 
-		Krb5_Admin::C::write_kt($ctx, $kt, $i);
+		Krb5Admin::C::write_kt($ctx, $kt, $i);
 	}
 	vprint "Finished writing keys in write_keys_internal...\n";
 }
@@ -578,7 +578,7 @@ sub write_keys_kt {
 	my ($proid, $lib, $princ, $kvno, @keys) = @_;
 	my $oldkt;
 	my $kt = get_kt($proid);
-	my $ctx = Krb5_Admin::C::krb5_init_context();
+	my $ctx = Krb5Admin::C::krb5_init_context();
 
 	for my $i (@keys) {
 		$i->{princ} = $princ	if defined($princ);
@@ -588,7 +588,7 @@ sub write_keys_kt {
 	write_keys_internal($ctx, $lib, $kt, @keys);
 
 	my @ktkeys;
-	eval { @ktkeys = Krb5_Admin::C::read_kt($ctx, $kt); };
+	eval { @ktkeys = Krb5Admin::C::read_kt($ctx, $kt); };
 
 	return if $force < 2 && !is_quirky($lib, @ktkeys);
 
@@ -631,7 +631,7 @@ sub install_keys {
 	for my $princ (@names) {
 		vprint "installing: $princ\n";
 		if (!defined($kmdb)) {
-			$kmdb = Krb5_Admin::Client->new("host/$instance",
+			$kmdb = Krb5Admin::Client->new("host/$instance",
 			    { port => 'krb5_keytab' });
 		}
 		# For change, we force ourselves to chat with the master
@@ -900,7 +900,7 @@ if (defined($opts{A})) {
 		}
 
 		system($KINIT, '-l', '10m', $admin) and next;
-		$kmdb = Krb5_Admin::Client->new();
+		$kmdb = Krb5Admin::Client->new();
 		last;
 	}
 
