@@ -261,40 +261,21 @@ sub working_lib {
 	$ret;
 }
 
-#
-# parse_princ returns a list of the form:
-#
-#       (REALM, component[, component, ...])
-#
-# from a Kerberos principal.
-#
-# XXXrcd: currently lame insofar as it only parses up to 2 components...
-# XXXrcd: also lame because we default to is1.morgan: should get default
-#         realm...
-# XXXrcd: also lame because it is cut and pasted from krb5_admin.
-
 sub parse_princ {
+	my ($princ) = @_;
 
-        # XXXrcd: die if called from scalar context?
+	my $ctx = Krb5Admin::C::krb5_init_context();
 
-        if ($_[0] =~ m,[^-A-Za-z0-9_/@.],) {
-                die [503, "Malformed principal name"];
-        }
-
-        $_[0] =~ m,^([^/@]+)(?:/([^/@]+))?(?:@([^/@]+))?$,;
-
-        die [503, "Malformed principal in parse_princ"] if !defined($1);
-
-        my @ret = (defined($3)?$3:'is1.morgan', $1);
-        push(@ret, $2) if (defined($2));
-        @ret;
+	return Krb5Admin::C::krb5_parse_name($ctx, $princ);
 }
+
 
 # XXXrcd: maybe we should perform a little validation later.
 # XXXrcd: also lame because it is code duplication.
 sub unparse_princ {
+	my ($realm, @comps) = @_;
 
-	$_[0]->[1] . '/' . $_[0]->[2] . '@' . $_[0]->[0];
+	return join('/', @comps) . '@' . $realm;
 }
 
 #
