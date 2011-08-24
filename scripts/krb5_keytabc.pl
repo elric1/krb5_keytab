@@ -25,10 +25,10 @@ use warnings;
 #
 # Constants:
 
-our $KRB5_KEYTAB_CONFIG = '/ms/dist/kerberos/etc/krb5_keytab.conf';
-our $KLIST    = '/ms/dist/kerberos/PROJ/mitkrb5/1.4-lib-prod/bin/klist';
-our $KINIT    = '/ms/dist/kerberos/PROJ/mitkrb5/1.4-lib-prod/bin/kinit';
-our $KDESTROY = '/ms/dist/kerberos/PROJ/mitkrb5/1.4-lib-prod/bin/kdestroy';
+our $KRB5_KEYTAB_CONFIG = '@@KRB5_KEYTAB_CONF@@';
+our $KLIST    = '@@KLIST@@';
+our $KINIT    = '@@KINIT@@';
+our $KDESTROY = '@@KDESTROY@@';
 
 #
 # These variables are expected to be set in the configuration file:
