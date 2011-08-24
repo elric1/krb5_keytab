@@ -13,6 +13,7 @@ use Sys::Syslog;
 use Time::HiRes qw(gettimeofday);
 
 use Krb5Admin::Client;
+use Krb5Admin::KerberosDB;
 use Krb5Admin::Utils qw/host_list/;
 use Krb5Admin::C;
 
@@ -789,7 +790,7 @@ my $krb5_lib;
 %admin_users = map { $_ => 1 } @admin_users;
 
 # XXXrcd: getopt error?
-getopts('AFL:Rcfglqp:rtu:v?', \%opts) or usage();
+getopts('AFL:RZcfglqp:rtu:v?', \%opts) or usage();
 
 usage() if defined($opts{'?'});
 
@@ -863,11 +864,13 @@ openlog('krb5_keytab', 'pid', 'auth');
 # before The Wife says [more] nasty things about Me.
 
 my @princs;
-if (defined($opts{A})) {
+if (defined($opts{A}) || defined($opts{Z})) {
 	if ($invoking_user ne 'root' && !$admin_users{$invoking_user}) {
-		die "-A requires administrative access.";
+		die "-A and -Z require administrative access.";
 	}
+}
 
+if (defined($opts{A}) && !defined($opts{Z})) {
 	print "Please enter your Kerberos administrative principal\n";
 	print "This is generally your username followed by ``/admin'',\n";
 	print "I.e.: user/admin\n\n";
@@ -887,7 +890,11 @@ if (defined($opts{A})) {
 		$kmdb = Krb5Admin::Client->new();
 		last;
 	}
+} elsif (defined($opts{Z})) {
+	$kmdb = Krb5Admin::KerberosDB->new(local => 1);
+}
 
+if (defined($opts{A})) {
 	my $ctx = Krb5Admin::C::krb5_init_context();
 	my $def_realm = Krb5Admin::C::krb5_get_realm($ctx);
 	@princs = map { [$def_realm, 'host', $_ ] } (host_list(hostname()));

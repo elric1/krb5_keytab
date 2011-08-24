@@ -77,6 +77,7 @@ main(int argc, char **argv)
 	int		  new_argc;
 	int		  Aflag = 0;
 	int		  Fflag = 0;
+	int		  Zflag = 0;
 	int		  cflag = 0;
 	int		  fflag = 0;
 	int		  gflag = 0;
@@ -89,7 +90,7 @@ main(int argc, char **argv)
 	char		**new_argv;
 	char		 *user;
 
-	while ((c = getopt(argc, argv, "AFL:Rcfglqp:rtv?")) != -1)
+	while ((c = getopt(argc, argv, "AFL:RZcfglqp:rtv?")) != -1)
 		switch (c) {
 		case 'A':
 			Aflag = 1;
@@ -104,6 +105,9 @@ main(int argc, char **argv)
 				usage();
 			}
 			libs = strdup(optarg);
+			break;
+		case 'Z':
+			Zflag = 1;
 			break;
 		case 'c':
 			cflag = 1;
@@ -185,6 +189,8 @@ main(int argc, char **argv)
 		new_argv[i++] = strdup("-A");
 	if (Fflag)
 		new_argv[i++] = strdup("-F");
+	if (Zflag)
+		new_argv[i++] = strdup("-Z");
 	if (cflag)
 		new_argv[i++] = strdup("-c");
 	if (fflag)
