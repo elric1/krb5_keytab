@@ -273,7 +273,7 @@ sub parse_princ {
 # XXXrcd: maybe we should perform a little validation later.
 # XXXrcd: also lame because it is code duplication.
 sub unparse_princ {
-	my ($realm, @comps) = @_;
+	my ($realm, @comps) = @{@_[0]};
 
 	return join('/', @comps) . '@' . $realm;
 }
@@ -337,7 +337,7 @@ sub expand_princs {
 		$pr->[0] = Krb5Admin::C::krb5_get_realm($ctx);
 	}
 
-	if ($pr->[2] eq '') {
+	if (!defined($pr->[2] || $pr->[2] eq '') {
 		return map { [ $pr->[0], $pr->[1], $_ ] } @instances;
 	} else {
 		return ($pr);
