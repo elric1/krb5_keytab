@@ -373,9 +373,8 @@ sub check_acls {
 	return if $proid eq 'root';
 
 	our %acl_svcs;
-	$proid2service{$proid} = [] if !defined($proid2service{$proid});
+	$proid2service{$proid} = [$proid] if !defined($proid2service{$proid});
 	%acl_svcs = map { $_ => 1 } @{$proid2service{$proid}};
-	$acl_svcs{$proid} = 1;
 
 	for my $i (grep { !defined($acl_svcs{$_->[1]}) } @services) {
 		print STDERR "Permission denied: $proid can't create " .
