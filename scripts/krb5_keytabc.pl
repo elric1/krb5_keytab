@@ -755,8 +755,7 @@ EOM
 
 	print STDERR <<EOM;
 
-The following libraries are only supported by filing a Falcon ticket to
-the RMC for provisioning:
+The following libraries are only supported by administrators:
 
 EOM
 
