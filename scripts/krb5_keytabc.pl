@@ -615,8 +615,7 @@ sub install_keys {
 	for my $princ (@names) {
 		vprint "installing: $princ\n";
 		if (!defined($kmdb)) {
-			$kmdb = Krb5Admin::Client->new("host/$instance",
-			    { port => 'krb5_keytab' });
+			$kmdb = Krb5Admin::Client->new("host/$instance");
 		}
 		# For change, we force ourselves to chat with the master
 		# by executing a failing change() method...
