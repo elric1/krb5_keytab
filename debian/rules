@@ -1,0 +1,8 @@
+#!/usr/bin/make -f
+
+%:
+	dh  $@
+
+override_dh_fixperms:
+	dh_fixperms
+	chmod 4755 debian/krb5keytab/usr/sbin/krb5_keytab
