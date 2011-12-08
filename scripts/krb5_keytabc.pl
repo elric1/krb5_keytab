@@ -514,6 +514,15 @@ sub generate_keytab {
 sub need_new_key {
 	my ($kt, $key) = @_;
 
+	my $ctx = Krb5Admin::C::krb5_init_context();
+
+	my @ktkeys;
+	eval { @ktkeys = Krb5Admin::C::read_kt($ctx, $kt); };
+
+	if ($@ || !grep { $_->{princ} eq $key } @ktkeys) {
+		return 1;
+	}
+
 	qx{$KINIT -cMEMORY:foo "-kt$kt" "$key" > /dev/null 2>&1};
 	return 1 if $? != 0;
 	return 0;
