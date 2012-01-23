@@ -332,17 +332,22 @@ sub get_instances {
 
 sub expand_princs {
 	my ($pr) = @_;
+	my @insts = @instances;
 
 	if (!defined($pr->[0]) || $pr->[0] eq '') {
 		my $ctx = Krb5Admin::C::krb5_init_context();
 		$pr->[0] = Krb5Admin::C::krb5_get_realm($ctx);
 	}
 
-	if (!defined($pr->[2]) || $pr->[2] eq '') {
-		return map { [ $pr->[0], $pr->[1], $_ ] } @instances;
-	} else {
-		return ($pr);
+	if ($pr->[1] eq 'host') {
+		@insts = host_list(hostname());
 	}
+
+	if (!defined($pr->[2]) || $pr->[2] eq '') {
+		return map { [ $pr->[0], $pr->[1], $_ ] } @insts;
+	}
+
+	return ($pr);
 }
 
 
@@ -852,7 +857,10 @@ $action  = 'query'	if defined($opts{'q'});
 $action  = 'test'	if defined($opts{'t'});
 $action  = 'generate'	if defined($opts{'g'});
 
-@ARGV = ($proid) if (scalar(@ARGV) == 0);
+if (scalar(@ARGV) == 0) {
+	@ARGV = ($proid);
+	@ARGV = ('host')  if $proid eq 'root';
+}
 
 my ($fh, $ccname) = mkstemp("/tmp/krb5_keytab_ccXXXXXX");
 undef($fh);
@@ -904,18 +912,9 @@ if (defined($opts{A}) && !defined($opts{Z})) {
 	$kmdb = Krb5Admin::KerberosDB->new(local => 1);
 }
 
-if (defined($opts{A})) {
-	my $ctx = Krb5Admin::C::krb5_init_context();
-	my $def_realm = Krb5Admin::C::krb5_get_realm($ctx);
-	@princs = map { [$def_realm, 'host', $_ ] } (host_list(hostname()));
-	$proid = 'root';
-} else {
+@instances = get_instances();
 
-	# UGLY!
-
-	@instances = get_instances();
-	@princs = map { expand_princs([ parse_princ($_) ]) } @ARGV;
-}
+@princs = map { expand_princs([ parse_princ($_) ]) } @ARGV;
 
 #
 # XXXrcd: this all needs to be refactored.
