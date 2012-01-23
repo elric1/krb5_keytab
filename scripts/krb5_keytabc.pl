@@ -57,7 +57,9 @@ for my $i (keys %enctypes) {
 #
 # Done: config file.
 
-our @instances;
+our $defrealm;
+our @instances = ();
+our @hostinsts = ();
 our $force = 0;
 our $ret;
 
@@ -332,22 +334,32 @@ sub get_instances {
 
 sub expand_princs {
 	my ($pr) = @_;
-	my @insts = @instances;
-
-	if (!defined($pr->[0]) || $pr->[0] eq '') {
-		my $ctx = Krb5Admin::C::krb5_init_context();
-		$pr->[0] = Krb5Admin::C::krb5_get_realm($ctx);
-	}
-
-	if ($pr->[1] eq 'host') {
-		@insts = host_list(hostname());
-	}
+	my @insts;
+	my $realm;
 
 	if (!defined($pr->[2]) || $pr->[2] eq '') {
-		return map { [ $pr->[0], $pr->[1], $_ ] } @insts;
+		if ($pr->[1] eq 'host') {
+			@hostinsts = host_list(hostname()) if @hostinsts == 0;
+			@insts = @hostinsts;
+		} else {
+			@instances = get_instances()	if @instances == 0;
+			@insts = @instances;
+		}
+	} else {
+		@insts = ($pr->[2]);
 	}
 
-	return ($pr);
+	$realm = $pr->[0];
+	if (!defined($realm) || $realm eq '') {
+		if (!defined($defrealm)) {
+			my $ctx = Krb5Admin::C::krb5_init_context();
+			$defrealm = Krb5Admin::C::krb5_get_realm($ctx);
+		}
+
+		$realm = $defrealm;
+	}
+
+	return map { [ $realm, $pr->[1], $_ ] } @insts;
 }
 
 
@@ -911,8 +923,6 @@ if (defined($opts{A}) && !defined($opts{Z})) {
 } elsif (defined($opts{Z})) {
 	$kmdb = Krb5Admin::KerberosDB->new(local => 1);
 }
-
-@instances = get_instances();
 
 @princs = map { expand_princs([ parse_princ($_) ]) } @ARGV;
 
