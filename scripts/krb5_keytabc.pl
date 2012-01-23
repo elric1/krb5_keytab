@@ -624,7 +624,11 @@ sub install_keys {
 	for my $princ (@names) {
 		vprint "installing: $princ\n";
 		if (!defined($kmdb)) {
-			$kmdb = Krb5Admin::Client->new("host/$instance");
+			my $tmpprinc = parse_princ($princ);
+
+			vprint "connecting to $tmpprinc->[0]'s KDCs\n";
+			$kmdb = Krb5Admin::Client->new("host/$instance",
+			    { realm => $tmpprinc->[0] });
 		}
 		# For change, we force ourselves to chat with the master
 		# by executing a failing change() method...
