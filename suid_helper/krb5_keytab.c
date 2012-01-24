@@ -89,8 +89,9 @@ main(int argc, char **argv)
 	char		 *proid = NULL;
 	char		**new_argv;
 	char		 *user;
+	char		 *xrealm = NULL;
 
-	while ((c = getopt(argc, argv, "AFL:RZcfglqp:rtv?")) != -1)
+	while ((c = getopt(argc, argv, "AFL:RX:Zcfglqp:rtv?")) != -1)
 		switch (c) {
 		case 'A':
 			Aflag = 1;
@@ -105,6 +106,14 @@ main(int argc, char **argv)
 				usage();
 			}
 			libs = strdup(optarg);
+			break;
+		case 'X':
+			if (xrealm) {
+				fprintf(stderr, "can't specify more than one "
+				    "realm from which to xrealm bootstrap.\n");
+				usage();
+			}
+			xrealm = strdup(optarg);
 			break;
 		case 'Z':
 			Zflag = 1;
@@ -178,6 +187,11 @@ main(int argc, char **argv)
 	if (libs) {
 		new_argv[i++] = strdup("-L");
 		new_argv[i++] = libs;
+	}
+
+	if (xrealm) {
+		new_argv[i++] = strdup("-X");
+		new_argv[i++] = xrealm;
 	}
 
 	if (proid) {
