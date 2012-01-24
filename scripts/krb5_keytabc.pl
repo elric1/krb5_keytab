@@ -627,7 +627,7 @@ sub write_keys_kt {
 #         host instance/realm, you must use a different connexion.
 
 sub install_keys {
-	my ($kmdb, $action, $lib, $instance, $proid, @names) = @_;
+	my ($kmdb, $action, $lib, $client, $proid, @names) = @_;
 	my $kt = get_kt($proid);
 	my @ret;
 	my $etypes;
@@ -643,8 +643,9 @@ sub install_keys {
 		if (!defined($kmdb)) {
 			my $tmpprinc = parse_princ($princ);
 
-			vprint "connecting to $tmpprinc->[0]'s KDCs\n";
-			$kmdb = Krb5Admin::Client->new("host/$instance",
+			vprint "connecting to $tmpprinc->[0]'s KDCs using " .
+			    "$client creds\n";
+			$kmdb = Krb5Admin::Client->new($client,
 			    { realm => $tmpprinc->[0] });
 		}
 		# For change, we force ourselves to chat with the master
@@ -726,7 +727,7 @@ sub install_all_keys {
 	for my $i (keys %instmap) {
 		vprint "installing keys for instance $i...\n";
 		eval {
-			install_keys($kmdb, $action, $lib, $i, $proid,
+			install_keys($kmdb, $action, $lib, "host/$i", $proid,
 			    @{$instmap{$i}});
 		};
 		if ($@) {
