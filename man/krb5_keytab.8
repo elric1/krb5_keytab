@@ -126,6 +126,13 @@ The default is mitkrb5/1.4 when creating new keys.
 When changing keys, the current encryption types will be preserved unless the
 .Fl L Ar library
 option is specified.
+.It Fl X Ar xrealm
+specifies that
+.Nm
+will use the realm
+.Ar xrealm
+in preference to construct the client principal in preference to
+the realm of the requested principal.
 .It Fl c
 change the keys.
 .It Fl f
@@ -176,6 +183,12 @@ for the host:
 If only a certain principal needs to be created:
 .Bd -literal
 	$ krb5_keytab proid/hostname
+.Ed
+.Pp
+To fetch Kerberos credentials host/<hostname>@BAR.EXAMPLE.COM using
+host/<hostname>@FOO.EXAMPLE.COM:
+.Bd -literal
+	$ krb5_keytab -X FOO.EXAMPLE.COM host@BAR.EXAMPLE.COM
 .Ed
 .Pp
 To test if a keytab contains keys that are compatible with a certain version
