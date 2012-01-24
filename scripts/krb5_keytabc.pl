@@ -641,7 +641,7 @@ sub install_keys {
 	for my $princ (@names) {
 		vprint "installing: $princ\n";
 		if (!defined($kmdb)) {
-			my $tmpprinc = parse_princ($princ);
+			my $tmpprinc = [parse_princ($princ)];
 
 			vprint "connecting to $tmpprinc->[0]'s KDCs using " .
 			    "$client creds\n";
@@ -712,7 +712,7 @@ sub install_keys {
 # over the keys of that map calling install_keys.
 
 sub install_all_keys {
-	my ($proid, $kmdb, $action, $lib, @princs) = @_;
+	my ($proid, $kmdb, $xrealm, $action, $lib, @princs) = @_;
 	my %instmap;
 	my $kt = get_kt($proid);
 	my $errs = 0;
@@ -721,25 +721,37 @@ sub install_all_keys {
 	check_acls($proid, @princs);		# this will exit on failure.
 
 	for my $i (@princs) {
-		push(@{$instmap{$i->[2]}}, unparse_princ($i));
+		push(@{$instmap{$i->[0]}->{$i->[2]}}, unparse_princ($i));
 	}
 
-	for my $i (keys %instmap) {
-		vprint "installing keys for instance $i...\n";
+	my @connexions;
+	for my $realm (keys %instmap) {
+		for my $inst (keys %{$instmap{$realm}}) {
+			push(@connexions, [$realm, $inst,
+			    $instmap{$realm}->{$inst}]);
+		}
+	}
+
+	for my $i (@connexions) {
+		vprint "installing keys for connexion $i->[0], $i->[1]...\n";
+
+		my $client = unparse_princ(
+		    [defined($xrealm) ? $xrealm : $i->[0], "host", $i->[1]]);
 		eval {
-			install_keys($kmdb, $action, $lib, "host/$i", $proid,
-			    @{$instmap{$i}});
+			install_keys($kmdb, $action, $lib, $client, $proid,
+			    @{$i->[2]});
 		};
 		if ($@) {
 			print STDERR (format_err($@) . "\n");
-			print STDERR "Failed to install keys $i\n";
+			print STDERR "Failed to install keys @{$i->[2]}\n";
 			syslog('err', "Failed to install (%s) keys for %s " .
-			    "instance %s, %s", $action, $proid, $i,
-			    format_err($@));
+			    "instance %s, %s", $action, $proid,
+			    join(', ', @{$i->[2]}), format_err($@));
 			$errs++;
 		} else {
 			syslog('info', "Installed (%s) keys for %s " .
-			    "instance %s", $action, $proid, $i);
+			    "instance %s", $action, $proid,
+			    join(', ', @{$i->[2]}));
 		}
 	}
 
@@ -814,11 +826,12 @@ my $action;
 my $kmdb;
 my %admin_users;
 my $krb5_lib;
+my $xrealm;
 
 %admin_users = map { $_ => 1 } @admin_users;
 
 # XXXrcd: getopt error?
-getopts('AFL:RZcfglqp:rtu:v?', \%opts) or usage();
+getopts('AFL:RX:Zcfglqp:rtu:v?', \%opts) or usage();
 
 usage() if defined($opts{'?'});
 
@@ -863,6 +876,7 @@ if (defined($krb5_lib)) {
 $verbose = 1		if defined($opts{'v'});
 $force   = 1		if defined($opts{'f'});
 $force   = 2		if defined($opts{'F'});
+$xrealm  = $opts{X}	if defined($opts{'X'});
 $action  = 'default';
 $action  = 'change'	if defined($opts{'c'});
 $action  = 'list'	if defined($opts{'l'});
@@ -1037,7 +1051,8 @@ eval {
 	#
 	# Okay, now we have our lock we are protected:
 
-	$errs += install_all_keys($proid, $kmdb, $action, $krb5_lib, @princs);
+	$errs += install_all_keys($proid, $kmdb, $xrealm, $action,
+	    $krb5_lib, @princs);
 	$errs += test_keytab($proid, $krb5_lib, @princs);
 };
 
