@@ -10,33 +10,33 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl AFfv
-.Op Fl p Ar proid
+.Op Fl p Ar user
 .Op Fl L Ar lib
 .Op Ar princ ...
 .Nm
 .Fl c
 .Op Fl AFfv
-.Op Fl p Ar proid
+.Op Fl p Ar user
 .Op Fl L Ar lib
 .Op Ar princ ...
 .Nm
 .Fl g
 .Op Fl v
-.Op Fl p Ar proid
+.Op Fl p Ar user
 .Op Ar princ ...
 .Nm
 .Fl l
 .Op Fl v
-.Op Fl p Ar proid
+.Op Fl p Ar user
 .Nm
 .Fl q
 .Op Fl v
-.Op Fl p Ar proid
+.Op Fl p Ar user
 .Op Ar princ ...
 .Nm
 .Fl t
 .Op Fl v
-.Op Fl p Ar proid
+.Op Fl p Ar user
 .Op Fl L Ar lib
 .Op Ar princ ...
 .Sh DESCRIPTION
@@ -48,11 +48,11 @@ In general,
 .Nm
 should be called in the start scripts of the server that requires the
 keytab.
-If run as the proid in question, it requires no arguments and will simply
+If run as the user in question, it requires no arguments and will simply
 fetch all of the keys necessary.
 .Nm
 can also be run as root but in this case, it is necessary to specify the
-.Fl p Ar proid
+.Fl p Ar user
 or the
 .Fl A
 flag.
@@ -151,8 +151,8 @@ an equivalent keytab under certain assumptions.
 .It Fl l
 lists the current keytab.
 This flag is for administrators only.
-.It Fl p Ar proid
-the proid for which keys are to be obtained.
+.It Fl p Ar user
+the user for which keys are to be obtained.
 This option is only relevant for administrative users.
 .It Fl q
 will describe the keytab in a human readable format.
@@ -182,7 +182,7 @@ for the host:
 .Pp
 If only a certain principal needs to be created:
 .Bd -literal
-	$ krb5_keytab proid/hostname
+	$ krb5_keytab service/hostname
 .Ed
 .Pp
 To fetch Kerberos credentials host/<hostname>@BAR.EXAMPLE.COM using
@@ -204,9 +204,9 @@ a certain version of the Kerberos libraries:
 .Ed
 .Pp
 To generate a list of commands that would create a functionally equivalent
-keytab for a particular proid:
+keytab for a particular user:
 .Bd -literal
-	$ krb5_keytab -g -p proid
+	$ krb5_keytab -g -p user
 .Ed
 .Sh SEE ALSO
 .Xr knc 1 ,

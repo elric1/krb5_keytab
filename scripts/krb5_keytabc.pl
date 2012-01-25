@@ -34,13 +34,13 @@ our $KDESTROY = '@@KDESTROY@@';
 #
 # These variables are expected to be set in the configuration file:
 
-our %proid2service = ();
+our %user2service = ();
 our @allowed_enctypes = ();
 our @admin_users = ();
 our %krb5_libs = ();
 our %krb5_lib_quirks = ();
 our $default_krb5_lib = ();
-our %proid_libs = ();
+our %user_libs = ();
 
 our %enctypes = (
 	0x12	=> 'aes256-cts',
@@ -82,7 +82,7 @@ sub format_err {
 	return $at;
 }
 
-sub get_proid_uid {
+sub get_ugid {
 	my @pwd = getpwnam($_[0]);
 
 	die "can't determine uid for $_[0]" if @pwd != 9;
@@ -364,11 +364,11 @@ sub expand_princs {
 
 
 #
-# check_acls takes a single proid and a list of principals specified
+# check_acls takes a single user and a list of principals specified
 # as listrefs: [ REALM, name, instance ] and will exit if the requested
 # operation is disallowed.
 #
-# This only checks if the proid's keytab is allowed to contain the service
+# This only checks if the user's keytab is allowed to contain the service
 # principals requested and is used to allow, e.g. imapsvr to install keys
 # for imap/hostname@REALM into /var/spool/keytabs/imapsvr if you are running
 # your imap servers as the imapsvr user in your environment.
@@ -376,25 +376,25 @@ sub expand_princs {
 # Okay.  Now, we have a list of array refs representing the requested
 # principals.  We need to do a little sanity checking on the data.  What
 # we're doing here is a tad odd from first sight, but the configuration
-# file contains a variable %proid2service which is a hash which keys on
-# the proid.  The value is an array ref of services which the proid is
+# file contains a variable %user2service which is a hash which keys on
+# the user.  The value is an array ref of services which the user is
 # allowed to request in its keytabs.  We extract this array ref and turn
 # it into a hash so that it can be used as a constant time lookup in the
-# grep.  We also add $proid to the hash for good measure as we implicitly
-# allow the proid to request keys for the service of the same name...
+# grep.  We also add $user to the hash for good measure as we implicitly
+# allow the user to request keys for the service of the same name...
 
 sub check_acls {
-	my ($proid, @services) = @_;
+	my ($user, @services) = @_;
 	my $err;
 
-	return if $proid eq 'root';
+	return if $user eq 'root';
 
 	our %acl_svcs;
-	$proid2service{$proid} = [$proid] if !defined($proid2service{$proid});
-	%acl_svcs = map { $_ => 1 } @{$proid2service{$proid}};
+	$user2service{$user} = [$user] if !defined($user2service{$user});
+	%acl_svcs = map { $_ => 1 } @{$user2service{$user}};
 
 	for my $i (grep { !defined($acl_svcs{$_->[1]}) } @services) {
-		print STDERR "Permission denied: $proid can't create " .
+		print STDERR "Permission denied: $user can't create " .
 		    unparse_princ($i) . "\n";
 		$err = 1;
 	}
@@ -430,13 +430,13 @@ sub obtain_lock {
 }
 
 #
-# get_kt() determines the location of the keytab based on the proid on
+# get_kt() determines the location of the keytab based on the user on
 # which we are operating.
 
 sub get_kt {
-	my ($proid) = @_;
+	my ($user) = @_;
 
-	return "WRFILE:/var/spool/keytabs/$proid" if $proid ne 'root';
+	return "WRFILE:/var/spool/keytabs/$user" if $user ne 'root';
 	return 'WRFILE:/etc/krb5.keytab';
 }
 
@@ -450,8 +450,8 @@ sub pretty_print_libs {
 }
 
 sub query_keytab {
-	my ($proid) = @_;
-	my @keys = get_keys(get_kt($proid));
+	my ($user) = @_;
+	my @keys = get_keys(get_kt($user));
 	my @princs = get_princs(@keys);
 
 	print "Keytab contains " . scalar(@princs) . " principals\n";
@@ -465,8 +465,8 @@ sub query_keytab {
 }
 
 sub test_keytab {
-	my ($proid, $lib, @inprincs) = @_;
-	my @keys = get_keys(get_kt($proid));
+	my ($user, $lib, @inprincs) = @_;
+	my @keys = get_keys(get_kt($user));
 	my @princs = get_princs(@keys);
 	my $err = 0;
 
@@ -488,8 +488,8 @@ sub test_keytab {
 }
 
 sub generate_keytab {
-	my ($proid, @inprincs) = @_;
-	my @keys = get_keys(get_kt($proid));
+	my ($user, @inprincs) = @_;
+	my @keys = get_keys(get_kt($user));
 	my @princs = get_princs(@keys);
 	my @errs;
 	my $err = 0;
@@ -501,9 +501,9 @@ sub generate_keytab {
 		}
 		my $working_lib = working_lib($i, @keys);
 
-		if (!defined($working_lib) || (exists($proid_libs{$proid}) &&
-		    !in_set($working_lib, $proid_libs{$proid}))) {
-			$working_lib = $proid_libs{$proid}->[0];
+		if (!defined($working_lib) || (exists($user_libs{$user}) &&
+		    !in_set($working_lib, $user_libs{$user}))) {
+			$working_lib = $user_libs{$user}->[0];
 		}
 
 		if (!defined($working_lib)) {
@@ -511,7 +511,7 @@ sub generate_keytab {
 			next;
 		}
 
-		print "krb5_keytab -p $proid -L " . $working_lib . " $i\n";
+		print "krb5_keytab -p $user -L " . $working_lib . " $i\n";
 	}
 
 	for my $i (@errs) {
@@ -585,9 +585,9 @@ sub write_keys_internal {
 }
 
 sub write_keys_kt {
-	my ($proid, $lib, $princ, $kvno, @keys) = @_;
+	my ($user, $lib, $princ, $kvno, @keys) = @_;
 	my $oldkt;
-	my $kt = get_kt($proid);
+	my $kt = get_kt($user);
 	my $ctx = Krb5Admin::C::krb5_init_context();
 
 	for my $i (@keys) {
@@ -613,9 +613,9 @@ sub write_keys_kt {
 	write_keys_internal($ctx, $lib, $kt, @keys);
 
 	$kt =~ s/^WRFILE://;
-	chmod(0400, $kt)			or die "chmod: $!";
-	chown(get_proid_uid($proid), $kt)	or die "chown: $!";
-	rename($kt, $oldkt)			or die "rename: $!";
+	chmod(0400, $kt)		or die "chmod: $!";
+	chown(get_ugid($user), $kt)	or die "chown: $!";
+	rename($kt, $oldkt)		or die "rename: $!";
 
 	vprint "New keytab file rename(2)ed into position, quirk-free\n";
 }
@@ -627,8 +627,8 @@ sub write_keys_kt {
 #         host instance/realm, you must use a different connexion.
 
 sub install_keys {
-	my ($kmdb, $action, $lib, $client, $proid, @names) = @_;
-	my $kt = get_kt($proid);
+	my ($kmdb, $action, $lib, $client, $user, @names) = @_;
+	my $kt = get_kt($user);
 	my @ret;
 	my $etypes;
 
@@ -670,7 +670,7 @@ sub install_keys {
 			@ret = $kmdb->fetch($princ);
 		}
 
-		write_keys_kt($proid, $lib, $princ, undef, @ret);
+		write_keys_kt($user, $lib, $princ, undef, @ret);
 
 		next if $action ne 'change';
 
@@ -691,7 +691,7 @@ sub install_keys {
 		}
 		$kvno++;
 		my @keys = mk_keys(@$etypes);
-		write_keys_kt($proid, $lib, $princ, $kvno, @keys);
+		write_keys_kt($user, $lib, $princ, $kvno, @keys);
 		$kmdb->change($princ, $kvno, \@keys);
 	}
 }
@@ -701,7 +701,7 @@ sub install_keys {
 #
 #	1.  the keytab location,
 #
-#	2.  the proid, and
+#	2.  the user, and
 #
 #	3.  a simple list of principals which are represented by
 #	    listrefs [ REALM, service, instance ].  It breaks up
@@ -712,13 +712,13 @@ sub install_keys {
 # over the keys of that map calling install_keys.
 
 sub install_all_keys {
-	my ($proid, $kmdb, $xrealm, $action, $lib, @princs) = @_;
+	my ($user, $kmdb, $xrealm, $action, $lib, @princs) = @_;
 	my %instmap;
-	my $kt = get_kt($proid);
+	my $kt = get_kt($user);
 	my $errs = 0;
 
 	vprint "checking acls...\n";
-	check_acls($proid, @princs);		# this will exit on failure.
+	check_acls($user, @princs);		# this will exit on failure.
 
 	for my $i (@princs) {
 		push(@{$instmap{$i->[0]}->{$i->[2]}}, unparse_princ($i));
@@ -738,26 +738,26 @@ sub install_all_keys {
 		my $client = unparse_princ(
 		    [defined($xrealm) ? $xrealm : $i->[0], "host", $i->[1]]);
 		eval {
-			install_keys($kmdb, $action, $lib, $client, $proid,
+			install_keys($kmdb, $action, $lib, $client, $user,
 			    @{$i->[2]});
 		};
 		if ($@) {
 			print STDERR (format_err($@) . "\n");
 			print STDERR "Failed to install keys @{$i->[2]}\n";
 			syslog('err', "Failed to install (%s) keys for %s " .
-			    "instance %s, %s", $action, $proid,
+			    "instance %s, %s", $action, $user,
 			    join(', ', @{$i->[2]}), format_err($@));
 			$errs++;
 		} else {
 			syslog('info', "Installed (%s) keys for %s " .
-			    "instance %s", $action, $proid,
+			    "instance %s", $action, $user,
 			    join(', ', @{$i->[2]}));
 		}
 	}
 
 	$kt =~ s/^WRFILE://;
-	chmod(0400, $kt)                            or die "chmod: $!";
-	chown(get_proid_uid($proid), $kt)           or die "chown: $!";
+	chmod(0400, $kt)		or die "chmod: $!";
+	chown(get_ugid($user), $kt)	or die "chown: $!";
 
 	vprint "Successfully updated keytab file\n" if $errs == 0;
 	return $errs;
@@ -769,12 +769,12 @@ sub install_all_keys {
 sub usage {
 
 	print STDERR <<EOM;
-usage: krb5_keytab [-fv] [-p <proid>] [-L libver] [<sprinc> ...]
-       krb5_keytab -c [-fv] [-p <proid>] [<sprinc> ...]
-       krb5_keytab -g [-fv] [-p <proid>] [<sprinc> ...]
-       krb5_keytab -l [-fv] [-p <proid>]
-       krb5_keytab -q [-fv] [-p <proid>] [<sprinc> ...]
-       krb5_keytab -t [-fv] [-p <proid>] [-L libver] [<sprinc> ...]
+usage: krb5_keytab [-fv] [-p <user>] [-L libver] [<sprinc> ...]
+       krb5_keytab -c [-fv] [-p <user>] [<sprinc> ...]
+       krb5_keytab -g [-fv] [-p <user>] [<sprinc> ...]
+       krb5_keytab -l [-fv] [-p <user>]
+       krb5_keytab -q [-fv] [-p <user>] [<sprinc> ...]
+       krb5_keytab -t [-fv] [-p <user>] [-L libver] [<sprinc> ...]
 
 For full usage please refer to the man page:
 
@@ -841,16 +841,16 @@ if (!defined($invoking_user)) {
 	exit(1);
 }
 
-my $proid = $opts{p};
-if (!defined($proid)) {
-	$proid = $invoking_user;
+my $user = $opts{p};
+if (!defined($user)) {
+	$user = $invoking_user;
 }
-if (!defined(getpwnam($proid))) {
-	print STDERR "User ID $proid does not exist.\n";
+if (!defined(getpwnam($user))) {
+	print STDERR "User ID $user does not exist.\n";
 	exit(1);
 }
 
-if ($invoking_user ne $proid && $invoking_user ne 'root' &&
+if ($invoking_user ne $user && $invoking_user ne 'root' &&
     !$admin_users{$invoking_user}) {
 	print STDERR "Access Denied for operation, $invoking_user does not\n";
 	print STDERR "have krb5_keytab administrative privileges.\n";
@@ -885,8 +885,8 @@ $action  = 'test'	if defined($opts{'t'});
 $action  = 'generate'	if defined($opts{'g'});
 
 if (scalar(@ARGV) == 0) {
-	@ARGV = ($proid);
-	@ARGV = ('host')  if $proid eq 'root';
+	@ARGV = ($user);
+	@ARGV = ('host')  if $user eq 'root';
 }
 
 my ($fh, $ccname) = mkstemp("/tmp/krb5_keytab_ccXXXXXX");
@@ -947,40 +947,40 @@ if (defined($opts{A}) && !defined($opts{Z})) {
 if ($action eq 'list') {
 	if (!$admin_users{$invoking_user}) {
 		syslog('err', "%s attempted to list %s's keytab",
-		    $invoking_user, $proid);
+		    $invoking_user, $user);
 		die "list is an administrative function only.";
 	}
-	syslog('info', "%s listed %s's keytab", $invoking_user, $proid);
-	system $KLIST ($KLIST, '-ekt', get_kt($proid));
+	syslog('info', "%s listed %s's keytab", $invoking_user, $user);
+	system $KLIST ($KLIST, '-ekt', get_kt($user));
 	system $KDESTROY;
 	exit(0);
 }
 
 if ($action eq 'query') {
-	syslog('info', "%s queried %s's keytab", $invoking_user, $proid);
-	query_keytab($proid);
+	syslog('info', "%s queried %s's keytab", $invoking_user, $user);
+	query_keytab($user);
 	system $KDESTROY;
 	exit(0);
 }
 
 if ($action eq 'generate') {
-	$errs += generate_keytab($proid, map {unparse_princ($_)} @princs);
+	$errs += generate_keytab($user, map {unparse_princ($_)} @princs);
 	system $KDESTROY;
 
 	if ($errs == 1) {
 		syslog('err', "%s generated from %s's keytab resulting in 1" .
-		    " error", $invoking_user, $proid);
+		    " error", $invoking_user, $user);
 		print STDERR "1 error was encountered.\n";
 		exit(1);
 	}
 	if ($errs > 0) {
 		syslog('err', "%s generated from %s's keytab resulting in %d" .
-		    " errors", $invoking_user, $proid, $errs);
+		    " errors", $invoking_user, $user, $errs);
 		print STDERR "$errs errors were encountered.\n";
 		exit(1);
 	}
 	syslog('info', "%s generated from %s's keytab successfully",
-	    $invoking_user, $proid);
+	    $invoking_user, $user);
 	vprint "No errors were encountered.\n";
 	exit(0);
 }
@@ -990,30 +990,30 @@ if ($action eq 'generate') {
 
 my $real_krb5_lib = $default_krb5_lib;
 $real_krb5_lib = $krb5_lib if defined($krb5_lib);
-if (defined($real_krb5_lib) && exists($proid_libs{$proid}) &&
-    !in_set($real_krb5_lib, $proid_libs{$proid})) {
-	print STDERR "$proid does not support $real_krb5_lib.\n";
+if (defined($real_krb5_lib) && exists($user_libs{$user}) &&
+    !in_set($real_krb5_lib, $user_libs{$user})) {
+	print STDERR "$user does not support $real_krb5_lib.\n";
 	exit(1);
 }
 
 if ($action eq 'test') {
-	$errs += test_keytab($proid, $krb5_lib, @princs);
+	$errs += test_keytab($user, $krb5_lib, @princs);
 	system $KDESTROY;
 
 	if ($errs == 1) {
 		syslog('err', "%s tested %s's keytab against %s resulting in ".
-		    "1 error", $invoking_user, $proid, $krb5_lib);
+		    "1 error", $invoking_user, $user, $krb5_lib);
 		print STDERR "1 error was encountered.\n";
 		exit(1);
 	}
 	if ($errs > 0) {
 		syslog('err', "%s tested %s's keytab against %s resulting in ".
-		    "%d errors", $invoking_user, $proid, $krb5_lib, $errs);
+		    "%d errors", $invoking_user, $user, $krb5_lib, $errs);
 		print STDERR "$errs errors were encountered.\n";
 		exit(1);
 	}
 	syslog('info', "%s tested %s's keytab against %s successfully",
-	    $invoking_user, $proid, $krb5_lib);
+	    $invoking_user, $user, $krb5_lib);
 	vprint "No errors were encountered.\n";
 	exit(0);
 }
@@ -1031,7 +1031,7 @@ die "/var/spool/keytabs does not exist or isn't readable"
     if ! -d "/var/spool/keytabs";
 
 my $lockdir = "/var/run/krb5_keytab";
-my $lockfile = "$lockdir/lock.proid.$proid";
+my $lockfile = "$lockdir/lock.user.$user";
 
 #
 # Setup the umask.  This is important.  We assume that we have a
@@ -1051,9 +1051,9 @@ eval {
 	#
 	# Okay, now we have our lock we are protected:
 
-	$errs += install_all_keys($proid, $kmdb, $xrealm, $action,
+	$errs += install_all_keys($user, $kmdb, $xrealm, $action,
 	    $krb5_lib, @princs);
-	$errs += test_keytab($proid, $krb5_lib, @princs);
+	$errs += test_keytab($user, $krb5_lib, @princs);
 };
 
 if ($@) {
@@ -1069,17 +1069,17 @@ if ($@) {
 system($KDESTROY);
 if ($errs == 1) {
 	syslog('err', "%s generated from %s's keytab resulting in 1" .
-	    " error", $invoking_user, $proid);
+	    " error", $invoking_user, $user);
 	print STDERR "1 error was encountered.\n";
 	exit(1);
 }
 if ($errs > 0) {
 	syslog('err', "%s generated from %s's keytab resulting in %d" .
-	    " errors", $invoking_user, $proid, $errs);
+	    " errors", $invoking_user, $user, $errs);
 	print STDERR "$errs errors were encountered.\n";
 	exit(1);
 }
 syslog('info', "%s generated from %s's keytab successfully",
-    $invoking_user, $proid);
+    $invoking_user, $user);
 vprint "No errors were encountered.\n";
 exit(0);

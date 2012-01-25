@@ -61,7 +61,7 @@ get_user(void)
 	uid = getuid();
 	pwd = getpwuid(uid);
 	if (pwd == NULL) {
-		fprintf(stderr, "Can not determine proid name for uid=%d\n",
+		fprintf(stderr, "Can not determine user name for uid=%d\n",
 		    (int)uid);
 		usage();
 	}
@@ -86,9 +86,8 @@ main(int argc, char **argv)
 	int		  tflag = 0;
 	int		  vflag = 0;
 	char		 *libs = NULL;
-	char		 *proid = NULL;
 	char		**new_argv;
-	char		 *user;
+	char		 *user = NULL;
 	char		 *xrealm = NULL;
 
 	while ((c = getopt(argc, argv, "AFL:RX:Zcfglqp:rtv?")) != -1)
@@ -134,12 +133,12 @@ main(int argc, char **argv)
 			qflag = 1;
 			break;
 		case 'p':
-			if (proid) {
+			if (user) {
 				fprintf(stderr, "can't specify more than "
-				    "one proid.\n");
+				    "one user.\n");
 				usage();
 			}
-			proid = strdup(optarg);
+			user = strdup(optarg);
 			break;
 		case 't':
 			tflag = 1;
@@ -166,10 +165,8 @@ main(int argc, char **argv)
 		usage();
 	}
 
-	user = get_user();
-
 	new_argc = argc + 3;
-	if (proid)
+	if (user)
 		new_argc += 2;
 	if (libs)
 		new_argc += 2;
@@ -194,9 +191,9 @@ main(int argc, char **argv)
 		new_argv[i++] = xrealm;
 	}
 
-	if (proid) {
+	if (user) {
 		new_argv[i++] = strdup("-p");
-		new_argv[i++] = proid;
+		new_argv[i++] = user;
 	}
 
 	if (Aflag)

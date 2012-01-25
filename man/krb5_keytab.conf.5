@@ -33,14 +33,14 @@ encryption types.
 is a hash mapping Kerberos library versions to an array ref of keytab
 management bugs (quirks) that must be considered when constructing or
 testing a keytab.
-.It %proid2service
-is a hash mapping proids to an array ref containing additional service
-principals that the proid may request to be placed in its keytab.
+.It %user2service
+is a hash mapping users to an array ref containing additional service
+principals that the user may request to be placed in its keytab.
 This mechanism will eventually be replaced with a more general mechanism
 which allows for hostbased specification of this concept.
-.It %proid_libs
-is a hash mapping proids to an array ref containing a list of acceptable
-Kerberos libraries which the proid may use.
+.It %user_libs
+is a hash mapping users to an array ref containing a list of acceptable
+Kerberos libraries which the user may use.
 Administrative users may not over-ride this restriction.
 .El
 .Pp
