@@ -58,7 +58,7 @@ for my $i (keys %enctypes) {
 # Done: config file.
 
 our $defrealm;
-our @instances = ();
+our $instances;
 our @hostinsts = ();
 our $force = 0;
 our $ret;
@@ -311,11 +311,13 @@ sub get_princs {
 # calculate the instances that we may need to fetch.
 
 sub get_instances {
+	my ($realm) = @_;
 	my @tmp;
 	my %ret;
 
 	@tmp = map { [ parse_princ($_->{princ}) ] } (get_keys(''));
-	for my $i (grep { $_->[1] eq 'host' } @tmp) {
+
+	for my $i (grep { $_->[1] eq 'host' && $_->[0] eq $realm } @tmp) {
 		$ret{$i->[2]} = 1;
 	}
 	keys %ret;
@@ -337,18 +339,6 @@ sub expand_princs {
 	my @insts;
 	my $realm;
 
-	if (!defined($pr->[2]) || $pr->[2] eq '') {
-		if ($pr->[1] eq 'host') {
-			@hostinsts = host_list(hostname()) if @hostinsts == 0;
-			@insts = @hostinsts;
-		} else {
-			@instances = get_instances()	if @instances == 0;
-			@insts = @instances;
-		}
-	} else {
-		@insts = ($pr->[2]);
-	}
-
 	$realm = $pr->[0];
 	if (!defined($realm) || $realm eq '') {
 		if (!defined($defrealm)) {
@@ -357,6 +347,21 @@ sub expand_princs {
 		}
 
 		$realm = $defrealm;
+	}
+
+	if (!defined($pr->[2]) || $pr->[2] eq '') {
+		if ($pr->[1] eq 'host') {
+			@hostinsts = host_list(hostname()) if @hostinsts == 0;
+			@insts = @hostinsts;
+		} else {
+			if (!exists($instances->{$realm}) ||
+			    @{$instances->{$realm}} == 0) {
+				$instances->{$realm} = [get_instances($realm)];
+			}
+			@insts = @{$instances->{$realm}};
+		}
+	} else {
+		@insts = ($pr->[2]);
 	}
 
 	return map { [ $realm, $pr->[1], $_ ] } @insts;
