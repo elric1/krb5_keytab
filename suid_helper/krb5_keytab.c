@@ -170,6 +170,8 @@ main(int argc, char **argv)
 		new_argc += 2;
 	if (libs)
 		new_argc += 2;
+	if (xrealm)
+		new_argc += 2;
 
 	new_argc += Aflag + cflag + fflag + gflag;
 	new_argc += lflag + qflag + tflag + vflag;
