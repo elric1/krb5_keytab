@@ -878,26 +878,26 @@ if (defined($krb5_lib)) {
 	}
 }
 
-$verbose = 1		if defined($opts{'v'});
-$force   = 1		if defined($opts{'f'});
-$force   = 2		if defined($opts{'F'});
-$xrealm  = $opts{X}	if defined($opts{'X'});
+$verbose = 1		if defined($opts{v});
+$force   = 1		if defined($opts{f});
+$force   = 2		if defined($opts{F});
+$xrealm  = $opts{X}	if defined($opts{X});
 $action  = 'default';
-$action  = 'change'	if defined($opts{'c'});
-$action  = 'list'	if defined($opts{'l'});
-$action  = 'query'	if defined($opts{'q'});
-$action  = 'test'	if defined($opts{'t'});
-$action  = 'generate'	if defined($opts{'g'});
+$action  = 'change'	if defined($opts{c});
+$action  = 'list'	if defined($opts{l});
+$action  = 'query'	if defined($opts{q});
+$action  = 'test'	if defined($opts{t});
+$action  = 'generate'	if defined($opts{g});
 
-if (defined($opts{'w'}) && defined($opts{'W'})) {
+if (defined($opts{w}) && defined($opts{W})) {
 	die "-W and -w are mutally exclusive.\n";
 }
 
-if (defined($opts{'w'}) && !defined($opts{'X'})) {
+if (defined($opts{w}) && !defined($opts{X})) {
 	die "specifying -w requires -X.\n";
 }
 
-if ((defined($opts{'W'}) || defined($opts{'X'})) && defined($opts{'A'})) {
+if ((defined($opts{W}) || defined($opts{X})) && defined($opts{A})) {
 	die "-A may not be specified with either -W or -X.\n";
 }
 
