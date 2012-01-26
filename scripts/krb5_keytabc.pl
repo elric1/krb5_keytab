@@ -982,7 +982,7 @@ if (defined($opts{W}) || defined($opts{w})) {
 
 	my $ret;
 	for my $princ (@princs) {
-		$ret = system($KINIT, '-l', '10m', $princ);
+		$ret = system($KINIT, '-k', '-l', '10m', $princ);
 
 		last if $ret == 0;
 		print STDERR "Warning: Could not obtain tickets for $princ.\n";
