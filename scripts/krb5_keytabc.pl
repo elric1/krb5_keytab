@@ -836,7 +836,7 @@ my $xrealm;
 %admin_users = map { $_ => 1 } @admin_users;
 
 # XXXrcd: getopt error?
-getopts('AFL:RX:Zcfglqp:rtu:v?', \%opts) or usage();
+getopts('AFL:RW:X:Zcfglqp:rtu:vw?', \%opts) or usage();
 
 usage() if defined($opts{'?'});
 
@@ -888,6 +888,18 @@ $action  = 'list'	if defined($opts{'l'});
 $action  = 'query'	if defined($opts{'q'});
 $action  = 'test'	if defined($opts{'t'});
 $action  = 'generate'	if defined($opts{'g'});
+
+if (defined($opts{'w'}) && defined($opts{'W'})) {
+	die "-W and -w are mutally exclusive.\n";
+}
+
+if (defined($opts{'w'}) && !defined($opts{'X'})) {
+	die "specifying -w requires -X.\n";
+}
+
+if ((defined($opts{'W'}) || defined($opts{'X'})) && defined($opts{'A'})) {
+	die "-A may not be specified with either -W or -X.\n";
+}
 
 if (scalar(@ARGV) == 0) {
 	@ARGV = ($user);
@@ -942,6 +954,44 @@ if (defined($opts{A}) && !defined($opts{Z})) {
 	}
 } elsif (defined($opts{Z})) {
 	$kmdb = Krb5Admin::KerberosDB->new(local => 1);
+}
+
+if (defined($opts{W}) || defined($opts{w})) {
+	my @princs;
+
+	if (defined($opts{W})) {
+		@princs = ($opts{W});
+	}
+
+	if (defined($opts{w})) {
+		my %hashprincs;
+
+		%hashprincs = map { $_->{princ} => 1 } (get_keys(''));
+		@princs = map { [ parse_princ($_) ] } (keys %hashprincs);
+		@princs = grep { $_->[0] eq $opts{X} } @princs;
+		@princs = grep { $_->[1] =~ /\$$/o } @princs;
+		@princs = grep { !defined($_->[2]) } @princs;
+
+		if (@princs == 0) {
+			die "Can't find any principals in realm " .
+			    $opts{X} . " which end in a buck (\$).\n";
+		}
+
+		@princs = map { unparse_princ($_) } @princs;
+	}
+
+	my $ret;
+	for my $princ (@princs) {
+		$ret = system($KINIT, '-l', '10m', $princ);
+
+		last if $ret == 0;
+		print STDERR "Warning: Could not obtain tickets for $princ.\n";
+	}
+
+	if ($ret) {
+		die "could not obtain creds for any windows principal.\n";
+	}
+	$kmdb = Krb5Admin::Client->new();
 }
 
 @princs = map { expand_princs([ parse_princ($_) ]) } @ARGV;

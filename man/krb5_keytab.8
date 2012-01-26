@@ -9,9 +9,11 @@
 .Nd kerberos keytab management client
 .Sh SYNOPSIS
 .Nm
-.Op Fl AFfv
+.Op Fl AFfvw
 .Op Fl p Ar user
 .Op Fl L Ar lib
+.Op Fl X Ar xrealm
+.Op Fl W Ar winprinc
 .Op Ar princ ...
 .Nm
 .Fl c
@@ -126,6 +128,15 @@ The default is mitkrb5/1.4 when creating new keys.
 When changing keys, the current encryption types will be preserved unless the
 .Fl L Ar library
 option is specified.
+.It Fl W Ar winprinc
+specifies that
+.Nm
+will use the Windows principal
+.Ar winprinc
+as a client when contacting the KDC.
+The principal must be fully qualified including the realm and
+must exist in
+.Pa /etc/krb5.keytab .
 .It Fl X Ar xrealm
 specifies that
 .Nm
@@ -163,6 +174,14 @@ version as specified by the
 option.
 .It Fl v
 increase the verbose level.
+.It Fl w
+will look for a Windows principal during a xrealm bootstrap operation.
+This flag must be specified in conjunction with
+.Fl X Ar xrealm .
+The Windows principal selected will be the first valid principal which
+is in the realm
+.Ar xrealm
+containing only one component which is terminated with a dollar sign.
 .El
 .Sh EXIT STATUS
 .Nm

@@ -85,12 +85,14 @@ main(int argc, char **argv)
 	int		  qflag = 0;
 	int		  tflag = 0;
 	int		  vflag = 0;
+	int		  wflag = 0;
 	char		 *libs = NULL;
 	char		**new_argv;
 	char		 *user = NULL;
+	char		 *winxrealm = NULL;
 	char		 *xrealm = NULL;
 
-	while ((c = getopt(argc, argv, "AFL:RX:Zcfglqp:rtv?")) != -1)
+	while ((c = getopt(argc, argv, "AFL:RW:X:Zcfglqp:rtvw?")) != -1)
 		switch (c) {
 		case 'A':
 			Aflag = 1;
@@ -105,6 +107,15 @@ main(int argc, char **argv)
 				usage();
 			}
 			libs = strdup(optarg);
+			break;
+		case 'W':
+			if (winxrealm) {
+				fprintf(stderr, "can't specify more than one "
+				    "windows principal from which to xrealm "
+				    "bootstrap.\n");
+				usage();
+			}
+			xrealm = strdup(optarg);
 			break;
 		case 'X':
 			if (xrealm) {
@@ -147,6 +158,9 @@ main(int argc, char **argv)
 			if (vflag < MAXVEES)
 				vflag++;
 			break;
+		case 'w':
+			wflag = 1;
+			break;
 		/* R and r are deprecated, but simply do nothing... */
 		case 'R':
 		case 'r':
@@ -170,11 +184,13 @@ main(int argc, char **argv)
 		new_argc += 2;
 	if (libs)
 		new_argc += 2;
+	if (winxrealm)
+		new_argc += 2;
 	if (xrealm)
 		new_argc += 2;
 
-	new_argc += Aflag + cflag + fflag + gflag;
-	new_argc += lflag + qflag + tflag + vflag;
+	new_argc += Aflag + Fflag + Zflag + cflag + fflag + gflag;
+	new_argc += lflag + qflag + tflag + vflag + wflag;
 	new_argc += 10; /*XXXrcd: safety*/
 
 	i = 0;
@@ -186,6 +202,11 @@ main(int argc, char **argv)
 	if (libs) {
 		new_argv[i++] = strdup("-L");
 		new_argv[i++] = libs;
+	}
+
+	if (winxrealm) {
+		new_argv[i++] = strdup("-W");
+		new_argv[i++] = winxrealm;
 	}
 
 	if (xrealm) {
@@ -224,6 +245,9 @@ main(int argc, char **argv)
 		vees = strdup("-vvvvvvvvv");
 		vees[vflag + 1] = '\0';
 		new_argv[i++] = vees;
+	}
+	if (wflag) {
+		new_argv[i++] = strdup("-w");
 	}
 
 	while (argc--)
