@@ -717,7 +717,7 @@ sub install_keys {
 # over the keys of that map calling install_keys.
 
 sub install_all_keys {
-	my ($user, $kmdb, $xrealm, $action, $lib, @princs) = @_;
+	my ($user, $kmdb, $got_tickets, $xrealm, $action, $lib, @princs) = @_;
 	my %instmap;
 	my $kt = get_kt($user);
 	my $errs = 0;
@@ -740,8 +740,12 @@ sub install_all_keys {
 	for my $i (@connexions) {
 		vprint "installing keys for connexion $i->[0], $i->[1]...\n";
 
-		my $client = unparse_princ(
-		    [defined($xrealm) ? $xrealm : $i->[0], "host", $i->[1]]);
+		my $client;
+		if (!$got_tickets) {
+			$client = unparse_princ(
+			    [defined($xrealm) ? $xrealm : $i->[0],
+			    "host", $i->[1]]);
+		}
 		eval {
 			install_keys($kmdb, $action, $lib, $client, $user,
 			    @{$i->[2]});
@@ -829,6 +833,7 @@ our %opts;
 my $errs = 0;
 my $action;
 my $kmdb;
+my $got_tickets = 0;
 my %admin_users;
 my $krb5_lib;
 my $xrealm;
@@ -949,7 +954,7 @@ if (defined($opts{A}) && !defined($opts{Z})) {
 		}
 
 		system($KINIT, '-l', '10m', $admin) and next;
-		$kmdb = Krb5Admin::Client->new();
+		$got_tickets = 1;
 		last;
 	}
 } elsif (defined($opts{Z})) {
@@ -991,7 +996,7 @@ if (defined($opts{W}) || defined($opts{w})) {
 	if ($ret) {
 		die "could not obtain creds for any windows principal.\n";
 	}
-	$kmdb = Krb5Admin::Client->new();
+	$got_tickets = 1;
 }
 
 @princs = map { expand_princs([ parse_princ($_) ]) } @ARGV;
@@ -1106,8 +1111,8 @@ eval {
 	#
 	# Okay, now we have our lock we are protected:
 
-	$errs += install_all_keys($user, $kmdb, $xrealm, $action,
-	    $krb5_lib, @princs);
+	$errs += install_all_keys($user, $kmdb, $got_tickets, $xrealm,
+	    $action, $krb5_lib, @princs);
 	$errs += test_keytab($user, $krb5_lib, @princs);
 };
 
