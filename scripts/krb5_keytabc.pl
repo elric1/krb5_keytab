@@ -648,8 +648,11 @@ sub install_keys {
 		if (!defined($kmdb)) {
 			my $tmpprinc = [parse_princ($princ)];
 
-			vprint "connecting to $tmpprinc->[0]'s KDCs using " .
-			    "$client creds\n";
+			vprint "connecting to $tmpprinc->[0]'s KDCs";
+			if (defined($client)) {
+				vprint " $client creds";
+			}
+			vprint "\n";
 			$kmdb = Krb5Admin::Client->new($client,
 			    { realm => $tmpprinc->[0] });
 		}
