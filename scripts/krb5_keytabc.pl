@@ -29,6 +29,7 @@ use warnings;
 our $KRB5_KEYTAB_CONFIG = '@@KRB5_KEYTAB_CONF@@';
 our $KLIST    = '@@KLIST@@';
 our $KINIT    = '@@KINIT@@';
+our @KINITOPT = qw(@@KINITOPT@@ -l 10m);
 our $KDESTROY = '@@KDESTROY@@';
 
 #
@@ -552,7 +553,7 @@ sub need_new_key {
 	if ($pid == 0) {
 		open(STDOUT, ">/dev/null");
 		open(STDERR, ">&STDOUT");
-		exec { $KINIT } $KINIT,
+		exec { $KINIT } $KINIT, @KINITOPT,
 			"-cMEMORY:foo", "-kt", "$kt", "$key";
 		exit 1;
 	}
@@ -967,7 +968,7 @@ if (defined($opts{A}) && !defined($opts{Z})) {
 			next;
 		}
 
-		system($KINIT, '-l', '10m', $admin) and next;
+		system($KINIT, @KINITOPT, $admin) and next;
 		$got_tickets = 1;
 		last;
 	}
@@ -1001,7 +1002,7 @@ if (defined($opts{W}) || defined($opts{w})) {
 
 	my $ret;
 	for my $princ (@princs) {
-		$ret = system($KINIT, '-k', '-l', '10m', $princ);
+		$ret = system($KINIT, '-k', @KINITOPT, $princ);
 
 		last if $ret == 0;
 		print STDERR "Warning: Could not obtain tickets for $princ.\n";
