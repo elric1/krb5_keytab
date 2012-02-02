@@ -545,8 +545,19 @@ sub need_new_key {
 		return 1;
 	}
 
-	qx{$KINIT -cMEMORY:foo "-kt$kt" "$key" > /dev/null 2>&1};
-	return 1 if $? != 0;
+	# Avoid spawning shells, ignore stderr and stdout.
+	#
+	my $pid = fork();
+	return 1 if ! defined($pid); # Can't fork
+	if ($pid == 0) {
+		open(STDOUT, ">/dev/null");
+		open(STDERR, ">&STDOUT");
+		exec { $KINIT } $KINIT,
+			"-cMEMORY:foo", "-kt", "$kt", "$key";
+		exit 1;
+	}
+	waitpid($pid, 0);
+	return 1 if ($? != 0);
 	return 0;
 }
 
