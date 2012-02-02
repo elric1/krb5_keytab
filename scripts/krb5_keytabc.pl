@@ -268,6 +268,10 @@ sub working_lib {
 sub parse_princ {
 	my ($princ) = @_;
 
+	if (!defined($princ)) {
+		die "parse_princ called without an argument.";
+	}
+
 	my $ctx = Krb5Admin::C::krb5_init_context();
 
 	return Krb5Admin::C::krb5_parse_name($ctx, $princ);
