@@ -1,7 +1,7 @@
 Source: krb5keytab
 Section: unknown
 Priority: extra
-Maintainer: root <root@unknown>
+Maintainer: root <elric@imrryr.org>
 Build-Depends: debhelper (>= 7)
 Standards-Version: 3.8.3
 Homepage: <insert the upstream URL, if relevant>
