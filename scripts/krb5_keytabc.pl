@@ -58,6 +58,18 @@ for my $i (keys %enctypes) {
 #
 # Done: config file.
 
+BEGIN {
+	my ($fh, $ccname) = mkstemp("/tmp/krb5_keytab_ccXXXXXX");
+	undef($fh);
+	our $krb5ccname = "FILE:$ccname";
+	$ENV{KRB5CCNAME} = $krb5ccname;
+}
+
+END {
+	system($KDESTROY);
+}
+
+our $krb5ccname;
 our $defrealm;
 our $instances;
 our @hostinsts = ();
@@ -930,10 +942,6 @@ if (scalar(@ARGV) == 0) {
 	@ARGV = ('host')  if $user eq 'root';
 }
 
-my ($fh, $ccname) = mkstemp("/tmp/krb5_keytab_ccXXXXXX");
-undef($fh);
-$ENV{KRB5CCNAME} = "FILE:$ccname";
-
 #
 # First we setup syslog.
 
@@ -1031,20 +1039,17 @@ if ($action eq 'list') {
 	}
 	syslog('info', "%s listed %s's keytab", $invoking_user, $user);
 	system $KLIST ($KLIST, '-ekt', get_kt($user));
-	system $KDESTROY;
 	exit(0);
 }
 
 if ($action eq 'query') {
 	syslog('info', "%s queried %s's keytab", $invoking_user, $user);
 	query_keytab($user);
-	system $KDESTROY;
 	exit(0);
 }
 
 if ($action eq 'generate') {
 	$errs += generate_keytab($user, map {unparse_princ($_)} @princs);
-	system $KDESTROY;
 
 	if ($errs == 1) {
 		syslog('err', "%s generated from %s's keytab resulting in 1" .
@@ -1077,7 +1082,6 @@ if (defined($real_krb5_lib) && exists($user_libs{$user}) &&
 
 if ($action eq 'test') {
 	$errs += test_keytab($user, $krb5_lib, @princs);
-	system $KDESTROY;
 
 	if ($errs == 1) {
 		syslog('err', "%s tested %s's keytab against %s resulting in ".
@@ -1142,10 +1146,6 @@ if ($@) {
 	print STDERR "Failed\n";
 }
 
-#
-# This system($KDESTROY) may not be run in all cases.  We should refactor
-# the code quite a bit to ensure that it does make it.
-system($KDESTROY);
 if ($errs == 1) {
 	syslog('err', "%s generated from %s's keytab resulting in 1" .
 	    " error", $invoking_user, $user);
