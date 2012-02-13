@@ -4,10 +4,10 @@
 PREFIX		?= /usr
 PERL		?= /usr/bin/perl
 KRB5DIR		?= /usr
-KINIT		?= $(KRB5DIR)/kinit
+KINIT		?= $(KRB5DIR)/bin/kinit
 KINITOPT	?=
-KLIST		?= $(KRB5DIR)/klist
-KDESTROY	?= $(KRB5DIR)/kdestroy
+KLIST		?= $(KRB5DIR)/bin/klist
+KDESTROY	?= $(KRB5DIR)/bin/kdestroy
 KRB5_KEYTAB_CONF?= /etc/krb5/krb5_keytab.conf
 
 all: krb5_keytabc
