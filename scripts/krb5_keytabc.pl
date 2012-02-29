@@ -700,9 +700,10 @@ sub install_keys {
 
 		my $func = $kmdb->can('change');
 		eval { $ret = $kmdb->query($princ) };
-		if ($@) {
-			die $@ if $action ne 'default';
-			vprint "query error: " . format_err($@) . "\n";
+		my $err = $@;
+		if ($err) {
+			die $err if $action ne 'default';
+			vprint "query error: " . format_err($err) . "\n";
 			vprint "creating: $princ\n";
 
 			$func = $kmdb->can('create');
@@ -718,7 +719,7 @@ sub install_keys {
 		#         need to revisit this decision as it is not
 		#         obvious that it is correct (consider clusters.)
 
-		if (!$@ && $action eq 'default') {
+		if (!$err && $action eq 'default') {
 			my @ktkeys;
 			eval { @ktkeys = Krb5Admin::C::read_kt($ctx, $kt); };
 
