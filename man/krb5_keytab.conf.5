@@ -33,6 +33,17 @@ encryption types.
 is a hash mapping Kerberos library versions to an array ref of keytab
 management bugs (quirks) that must be considered when constructing or
 testing a keytab.
+.It $use_fetch
+is a boolean value which tells
+.Xr krb5_keytab 8
+whether it should attempt to fetch keys from the KDC.
+By default the KDC will refuse these requests, so only enable this option
+if you have configured the KDC allow the fetching of keys.
+See
+.Ar $allow_fetch
+in
+.Xr krb5_admind.conf 5 .
+This value defaults to 0.
 .It %user2service
 is a hash mapping users to an array ref containing additional service
 principals that the user may request to be placed in its keytab.

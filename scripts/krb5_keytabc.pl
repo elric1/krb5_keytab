@@ -42,6 +42,13 @@ our %krb5_libs = ();
 our %krb5_lib_quirks = ();
 our $default_krb5_lib = ();
 our %user_libs = ();
+our $use_fetch = 0;
+
+#
+# Done: config file.
+
+#
+# And we define a few lookup tables:
 
 our %enctypes = (
 	0x12	=> 'aes256-cts',
@@ -55,9 +62,6 @@ for my $i (keys %enctypes) {
 	$revenctypes{$enctypes{$i}} = $i;
 }
 
-#
-# Done: config file.
-
 BEGIN {
 	my ($fh, $ccname) = mkstemp("/tmp/krb5_keytab_ccXXXXXX");
 	undef($fh);
@@ -66,9 +70,14 @@ BEGIN {
 }
 
 END {
+	local($?);
 	system($KDESTROY);
 }
 
+#
+# And our global variables:
+
+our $ctx;
 our $krb5ccname;
 our $defrealm;
 our $instances;
@@ -98,7 +107,7 @@ sub format_err {
 sub get_ugid {
 	my @pwd = getpwnam($_[0]);
 
-	die "can't determine uid for $_[0]" if @pwd != 9;
+	die "can't determine uid for $_[0]" if @pwd < 9;
 
 	($pwd[2], $pwd[3]);
 }
@@ -143,6 +152,14 @@ sub lib_better {
 }
 
 sub sort_libs { sort { lib_better($a, $b) } @_; }
+
+sub max_kvno {
+	my $kvno = -1;
+	for my $i (@{$_[0]}) {
+		$kvno = $i->{kvno}	if $i->{kvno} > $kvno;
+	}
+	return $kvno;
+}
 
 #
 # Hereafter we find the library quirk logic.  We have two functions here,
@@ -284,8 +301,6 @@ sub parse_princ {
 		die "parse_princ called without an argument.";
 	}
 
-	my $ctx = Krb5Admin::C::krb5_init_context();
-
 	return Krb5Admin::C::krb5_parse_name($ctx, $princ);
 }
 
@@ -304,7 +319,6 @@ sub unparse_princ {
 
 sub get_keys {
 	my ($kt) = @_;
-	my $ctx = Krb5Admin::C::krb5_init_context();
 
 	$kt = "FILE:/etc/krb5.keytab" if !defined($kt) || $kt eq '';
 	my @ktkeys = Krb5Admin::C::read_kt($ctx, $kt);
@@ -359,7 +373,6 @@ sub expand_princs {
 	$realm = $pr->[0];
 	if (!defined($realm) || $realm eq '') {
 		if (!defined($defrealm)) {
-			my $ctx = Krb5Admin::C::krb5_init_context();
 			$defrealm = Krb5Admin::C::krb5_get_realm($ctx);
 		}
 
@@ -553,8 +566,6 @@ sub generate_keytab {
 sub need_new_key {
 	my ($kt, $key) = @_;
 
-	my $ctx = Krb5Admin::C::krb5_init_context();
-
 	my @ktkeys;
 	eval { @ktkeys = Krb5Admin::C::read_kt($ctx, $kt); };
 
@@ -579,8 +590,6 @@ sub need_new_key {
 }
 
 sub mk_keys	{
-	my $ctx = Krb5Admin::C::krb5_init_context();
-
 	map {Krb5Admin::C::krb5_make_a_key($ctx, $_)} @_;
 }
 
@@ -621,7 +630,6 @@ sub write_keys_kt {
 	my ($user, $lib, $princ, $kvno, @keys) = @_;
 	my $oldkt;
 	my $kt = get_kt($user);
-	my $ctx = Krb5Admin::C::krb5_init_context();
 
 	for my $i (@keys) {
 		$i->{princ} = $princ	if defined($princ);
@@ -654,12 +662,103 @@ sub write_keys_kt {
 }
 
 #
-# XXXrcd: install_keys assumes that all keys to be installed can
-#         be fetched by a single Kerberos principal, i.e. that they
-#         have the same host instance and realm.  For a different
-#         host instance/realm, you must use a different connexion.
+# XXXrcd: install_keys and install_keys_legacy assume that all keys
+#	  to be installed can be fetched by a single Kerberos
+#	  principal, i.e. that they have the same host instance and
+#	  realm.  For a different host instance/realm, you must use
+#	  a different connexion.
 
 sub install_keys {
+	my ($kmdb, $action, $lib, $client, $user, @names) = @_;
+	my $kt = get_kt($user);
+	my $ret;
+	my $etypes;
+
+	$etypes = $krb5_libs{$lib} if defined($lib);
+
+	if ($action ne 'change' && $force < 1) {
+		@names = grep { need_new_key($kt, $_) } @names;
+	}
+
+	for my $princ (@names) {
+		vprint "installing: $princ\n";
+		if (!defined($kmdb)) {
+			my $tmpprinc = [parse_princ($princ)];
+			my $str = "";
+
+			$str .= "connecting to $tmpprinc->[0]'s KDCs";
+			if (defined($client)) {
+				$str .= " $client creds";
+			}
+			vprint "$str\n";
+			$kmdb = Krb5Admin::Client->new($client,
+			    { realm => $tmpprinc->[0] });
+		}
+		# For change, we force ourselves to chat with the master
+		# by executing a failing change() method...
+		$kmdb->master() if $action eq 'change';
+
+		my $func = $kmdb->can('change');
+		eval { $ret = $kmdb->query($princ) };
+		if ($@) {
+			die $@ if $action ne 'default';
+			vprint "query error: " . format_err($@) . "\n";
+			vprint "creating: $princ\n";
+
+			$func = $kmdb->can('create');
+		}
+
+		#
+		# Now, in this mode, we cannot simply fetch the keys and
+		# so, well, we will see if we are up to date.
+		#
+		# XXXrcd: If we aren't, well, the best thing that we can
+		#         do is either toss an exception or just warn and
+		#         change the keys.  For now, we die. Later, we
+		#         need to revisit this decision as it is not
+		#         obvious that it is correct (consider clusters.)
+
+		if (!$@ && $action eq 'default') {
+			my @ktkeys;
+			eval { @ktkeys = Krb5Admin::C::read_kt($ctx, $kt); };
+
+			if (max_kvno(\@ktkeys) < max_kvno($ret->{keys})) {
+				die "You have lost a few keys...";
+			}
+			vprint "The keys for $princ already exist.\n";
+			next;
+		}
+
+		my $kvno = 0;
+		my @kvno_arg = ();
+		if ($action eq 'change') {
+			# Find the max kvno:
+			$kvno = max_kvno($ret->{keys});
+			die "Could not determine max kvno" if $kvno == -1;
+			@kvno_arg = ($kvno + 1);
+		}
+
+		if (!defined($etypes) && $action eq 'change') {
+			my %enctypes;
+
+			for my $i (grep {$_->{kvno} == $kvno} @{$ret->{keys}}) {
+				$enctypes{$i->{enctype}}=1;
+			}
+			$etypes = [ keys %enctypes ];
+		}
+
+		if (!defined($etypes)) {
+			$etypes = $krb5_libs{$default_krb5_lib};
+			$etypes = [map { $revenctypes{$_} } @$etypes];
+		}
+		my $gend = $kmdb->genkeys($princ, $kvno + 1, @$etypes);
+		write_keys_kt($user, $lib, undef, undef, @{$gend->{'keys'}});
+		&$func($kmdb, $princ, @kvno_arg, 'public' => $gend->{'public'},
+		    'enctypes' => $etypes);
+	}
+}
+
+sub install_keys_legacy {
 	my ($kmdb, $action, $lib, $client, $user, @names) = @_;
 	my $kt = get_kt($user);
 	my @ret;
@@ -672,7 +771,7 @@ sub install_keys {
 	}
 
 	for my $princ (@names) {
-		vprint "installing: $princ\n";
+		vprint "installing (legacy): $princ\n";
 		if (!defined($kmdb)) {
 			my $tmpprinc = [parse_princ($princ)];
 
@@ -768,6 +867,11 @@ sub install_all_keys {
 		}
 	}
 
+	my $instkeys = \&install_keys;
+	if ($use_fetch) {
+		$instkeys = \&install_keys_legacy;
+	}
+
 	for my $i (@connexions) {
 		vprint "installing keys for connexion $i->[0], $i->[1]...\n";
 
@@ -778,7 +882,7 @@ sub install_all_keys {
 			    "host", $i->[1]]);
 		}
 		eval {
-			install_keys($kmdb, $action, $lib, $client, $user,
+			&$instkeys($kmdb, $action, $lib, $client, $user,
 			    @{$i->[2]});
 		};
 		if ($@) {
@@ -859,6 +963,8 @@ EOM
 
 do $KRB5_KEYTAB_CONFIG if -f $KRB5_KEYTAB_CONFIG;
 print $@ if $@;
+
+$ctx = Krb5Admin::C::krb5_init_context();
 
 our %opts;
 my $errs = 0;
@@ -1144,6 +1250,7 @@ if ($@) {
 	    format_err($@));
 	print STDERR (format_err($@) . "\n");
 	print STDERR "Failed\n";
+	exit(1);
 }
 
 if ($errs == 1) {
