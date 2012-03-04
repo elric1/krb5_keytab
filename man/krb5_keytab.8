@@ -9,7 +9,7 @@
 .Nd kerberos keytab management client
 .Sh SYNOPSIS
 .Nm
-.Op Fl AFfvw
+.Op Fl AFZfvw
 .Op Fl p Ar user
 .Op Fl L Ar lib
 .Op Fl X Ar xrealm
@@ -17,7 +17,7 @@
 .Op Ar princ ...
 .Nm
 .Fl c
-.Op Fl AFfv
+.Op Fl AFZfv
 .Op Fl p Ar user
 .Op Fl L Ar lib
 .Op Ar princ ...
@@ -144,6 +144,13 @@ will use the realm
 .Ar xrealm
 to construct the client principal in preference to
 the realm of the requested principal.
+.It Fl Z
+operate on a local Kerberos DB rather than talking to the network.
+This mode is useful for startup scripts on the master KDC but it
+should only be used on the master KDC and not on any slave KDCs
+as that would cause the Kerberos DB on that slave to be out of
+synchronisation with the master with perhaps less than desired
+results.
 .It Fl c
 change the keys.
 .It Fl f
