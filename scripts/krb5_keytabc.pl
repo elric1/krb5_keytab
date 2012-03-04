@@ -1297,9 +1297,11 @@ eval {
 };
 
 if ($@) {
+	my $err = $@;
+
 	syslog('err', "Received error from action %s, %s", $action,
-	    format_err($@));
-	print STDERR (format_err($@) . "\n");
+	    format_err($err));
+	print STDERR (format_err($err) . "\n");
 	print STDERR "Failed\n";
 	exit(1);
 }
