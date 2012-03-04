@@ -832,6 +832,39 @@ sub install_keys_legacy {
 	}
 }
 
+sub install_bootstrap_key {
+	my ($user, $kmdb, $got_tickets, $xrealm, $action, $lib, @princs) = @_;
+
+	vprint "installing a bootstrap key.\n";
+
+	if ($user ne 'root') {
+		die "bootstrap/RANDOM may only be installed by root.";
+	}
+
+	if (@princs > 1) {
+		die "If you specify bootstrap/RANDOM then it must " .
+		    "be only argument.";
+	}
+
+	if (!defined($kmdb)) {
+		my $realm = $princs[0]->[0];
+
+		if (!$got_tickets) {
+			vprint "obtaining anonymous tickets.\n";
+			system {$KINIT} ($KINIT, @KINITOPT, '--anonymous');
+		}
+		vprint "connecting to $realm\'s KDC.\n";
+		$kmdb = Krb5Admin::Client->new(undef, { realm => $realm });
+	}
+
+	my $gend = $kmdb->genkeys('bootstrap', 1, 18);
+	my $binding = $kmdb->create_bootstrap_id(public => $gend->{public},
+	    enctypes => [18]);
+	$gend = $kmdb->regenkeys($gend, $binding);
+
+	write_keys_kt($user, undef, undef, undef, @{$gend->{keys}});
+}
+
 #
 # install_all_keys just takes:
 #
@@ -852,6 +885,18 @@ sub install_all_keys {
 	my %instmap;
 	my $kt = get_kt($user);
 	my $errs = 0;
+
+	#
+	# First, we take care of the bootstrap principal requests.  We
+	# do not allow a bootstrap request to coexist with normal service
+	# principals.  We also require admin privs to make these requests.
+	# XXXrcd: we really need to refactor all of this code.  It has
+	# become quite cumbersome over the course of time.
+
+	if (grep { $_->[1] eq 'bootstrap' && $_->[2] eq 'RANDOM' } @princs) {
+		return install_bootstrap_key($user, $kmdb, $got_tickets,
+		    $xrealm, $action, $lib, @princs);
+	}
 
 	vprint "checking acls...\n";
 	check_acls($user, @princs);		# this will exit on failure.
