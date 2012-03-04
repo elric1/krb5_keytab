@@ -508,6 +508,10 @@ sub test_keytab {
 	$lib = $default_krb5_lib if !defined($lib);
 
 	for my $i (map { unparse_princ($_) } @inprincs) {
+		if ($i =~ m{^bootstrap/RANDOM}) {
+			vprint "Not testing $i\n";
+			next;
+		}
 		vprint "Testing $i\n";
 		if (!in_set($i, [@princs])) {
 			print STDERR "$i does not exist in the keytab.\n";
@@ -863,6 +867,7 @@ sub install_bootstrap_key {
 	$gend = $kmdb->regenkeys($gend, $binding);
 
 	write_keys_kt($user, undef, undef, undef, @{$gend->{keys}});
+	return 0;
 }
 
 #
