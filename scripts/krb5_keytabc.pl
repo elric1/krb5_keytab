@@ -665,198 +665,286 @@ sub write_keys_kt {
 	vprint "New keytab file rename(2)ed into position, quirk-free\n";
 }
 
-#
-# XXXrcd: install_keys and install_keys_legacy assume that all keys
-#	  to be installed can be fetched by a single Kerberos
-#	  principal, i.e. that they have the same host instance and
-#	  realm.  For a different host instance/realm, you must use
-#	  a different connexion.
-
-sub install_keys {
-	my ($kmdb, $action, $lib, $client, $user, @names) = @_;
+sub install_key {
+	my ($kmdb, $action, $lib, $client, $user, $princ) = @_;
+	my $strprinc = unparse_princ($princ);
 	my $kt = get_kt($user);
 	my $ret;
 	my $etypes;
 
+	if (!$kmdb) {
+		die "Cannot connect to KDC.";
+	}
+
 	$etypes = $krb5_libs{$lib} if defined($lib);
 
 	if ($action ne 'change' && $force < 1) {
-		@names = grep { need_new_key($kt, $_) } @names;
+		return 0 if !need_new_key($kt, $strprinc);
 	}
 
-	for my $princ (@names) {
-		vprint "installing: $princ\n";
-		if (!defined($kmdb)) {
-			my $tmpprinc = [parse_princ($princ)];
-			my $str = "";
+	$kmdb->master()		if $action eq 'change';
 
-			$str .= "connecting to $tmpprinc->[0]'s KDCs";
-			if (defined($client)) {
-				$str .= " $client creds";
-			}
-			vprint "$str\n";
-			$kmdb = Krb5Admin::Client->new($client,
-			    { realm => $tmpprinc->[0] });
-		}
-		# For change, we force ourselves to chat with the master
-		# by executing a failing change() method...
-		$kmdb->master() if $action eq 'change';
+	vprint "installing: $strprinc\n";
 
-		my $func = $kmdb->can('change');
-		eval { $ret = $kmdb->query($princ) };
-		my $err = $@;
-		if ($err) {
-			die $err if $action ne 'default';
-			vprint "query error: " . format_err($err) . "\n";
-			vprint "creating: $princ\n";
+	my $func = $kmdb->can('change');
+	eval { $ret = $kmdb->query($strprinc) };
+	my $err = $@;
+	if ($err) {
+		die $err if $action ne 'default';
+		vprint "query error: " . format_err($err) . "\n";
+		vprint "creating: $strprinc\n";
 
-			$func = $kmdb->can('create');
-		}
-
-		#
-		# Now, in this mode, we cannot simply fetch the keys and
-		# so, well, we will see if we are up to date.
-		#
-		# XXXrcd: If we aren't, well, the best thing that we can
-		#         do is either toss an exception or just warn and
-		#         change the keys.  For now, we die. Later, we
-		#         need to revisit this decision as it is not
-		#         obvious that it is correct (consider clusters.)
-
-		if (!$err && $action eq 'default') {
-			my @ktkeys;
-			eval { @ktkeys = Krb5Admin::C::read_kt($ctx, $kt); };
-
-			if (max_kvno(\@ktkeys) < max_kvno($ret->{keys})) {
-				die "You have lost a few keys...";
-			}
-			vprint "The keys for $princ already exist.\n";
-			next;
-		}
-
-		my $kvno = 0;
-		my @kvno_arg = ();
-		if ($action eq 'change') {
-			# Find the max kvno:
-			$kvno = max_kvno($ret->{keys});
-			die "Could not determine max kvno" if $kvno == -1;
-			@kvno_arg = ($kvno + 1);
-		}
-
-		if (!defined($etypes) && $action eq 'change') {
-			my %enctypes;
-
-			for my $i (grep {$_->{kvno} == $kvno} @{$ret->{keys}}) {
-				$enctypes{$i->{enctype}}=1;
-			}
-			$etypes = [ keys %enctypes ];
-		}
-
-		if (!defined($etypes)) {
-			$etypes = $krb5_libs{$default_krb5_lib};
-			$etypes = [map { $revenctypes{$_} } @$etypes];
-		}
-		my $gend = $kmdb->genkeys($princ, $kvno + 1, @$etypes);
-		write_keys_kt($user, $lib, undef, undef, @{$gend->{'keys'}});
-		&$func($kmdb, $princ, @kvno_arg, 'public' => $gend->{'public'},
-		    'enctypes' => $etypes);
+		$func = $kmdb->can('create');
 	}
+
+	#
+	# Now, in this mode, we cannot simply fetch the keys and
+	# so, well, we will see if we are up to date.
+	#
+	# XXXrcd: If we aren't, well, the best thing that we can
+	#         do is either toss an exception or just warn and
+	#         change the keys.  For now, we die. Later, we
+	#         need to revisit this decision as it is not
+	#         obvious that it is correct (consider clusters.)
+
+	if (!$err && $action eq 'default') {
+		my @ktkeys;
+		eval { @ktkeys = Krb5Admin::C::read_kt($ctx, $kt); };
+
+		if (max_kvno(\@ktkeys) < max_kvno($ret->{keys})) {
+			die "You have lost a few keys...";
+		}
+		vprint "The keys for $strprinc already exist.\n";
+		return 0;
+	}
+
+	my $kvno = 0;
+	my @kvno_arg = ();
+	if ($action eq 'change') {
+		# Find the max kvno:
+		$kvno = max_kvno($ret->{keys});
+		die "Could not determine max kvno" if $kvno == -1;
+		@kvno_arg = ($kvno + 1);
+	}
+
+	if (!defined($etypes) && $action eq 'change') {
+		my %enctypes;
+
+		for my $i (grep {$_->{kvno} == $kvno} @{$ret->{keys}}) {
+			$enctypes{$i->{enctype}}=1;
+		}
+		$etypes = [ keys %enctypes ];
+	}
+
+	if (!defined($etypes)) {
+		$etypes = $krb5_libs{$default_krb5_lib};
+		$etypes = [map { $revenctypes{$_} } @$etypes];
+	}
+	my $gend = $kmdb->genkeys($strprinc, $kvno + 1, @$etypes);
+	write_keys_kt($user, $lib, undef, undef, @{$gend->{'keys'}});
+	&$func($kmdb, $strprinc, @kvno_arg, 'public' => $gend->{'public'},
+	    'enctypes' => $etypes);
 }
 
-sub install_keys_legacy {
-	my ($kmdb, $action, $lib, $client, $user, @names) = @_;
+sub install_key_legacy {
+	my ($kmdb, $action, $lib, $client, $user, $princ) = @_;
+	my $strprinc = unparse_princ($princ);
 	my $kt = get_kt($user);
 	my @ret;
 	my $etypes;
 
+	if (!$kmdb) {
+		die "Cannot connect to KDC.";
+	}
+
 	$etypes = $krb5_libs{$lib} if defined($lib);
 
 	if ($action ne 'change' && $force < 1) {
-		@names = grep { need_new_key($kt, $_) } @names;
+		return 0 if !need_new_key($kt, $strprinc);
 	}
 
-	for my $princ (@names) {
-		vprint "installing (legacy): $princ\n";
-		if (!defined($kmdb)) {
-			my $tmpprinc = [parse_princ($princ)];
+	vprint "installing (legacy): $strprinc\n";
 
-			vprint "connecting to $tmpprinc->[0]'s KDCs";
-			if (defined($client)) {
-				vprint " $client creds";
+	$kmdb->master()		if $action eq 'change';
+
+	eval { @ret = $kmdb->fetch($strprinc) };
+	if ($@) {
+		die $@ if $action ne 'default';
+		vprint "fetch error: " . format_err($@) . "\n";
+		vprint "creating: $strprinc\n";
+		eval {
+			$kmdb->create($strprinc);
+			if (defined($etypes)) {
+				$kmdb->change($strprinc, -1,
+				    [mk_keys(@$etypes)]);
 			}
-			vprint "\n";
-			$kmdb = Krb5Admin::Client->new($client,
-			    { realm => $tmpprinc->[0] });
-		}
-		# For change, we force ourselves to chat with the master
-		# by executing a failing change() method...
-		$kmdb->master() if $action eq 'change';
-
-		eval { @ret = $kmdb->fetch($princ) };
+		};
 		if ($@) {
-			die $@ if $action ne 'default';
-			vprint "fetch error: " . format_err($@) . "\n";
-			vprint "creating: $princ\n";
-			eval {
-				$kmdb->create($princ);
-				if (defined($etypes)) {
-					$kmdb->change($princ, -1,
-					    [mk_keys(@$etypes)]);
-				}
-			};
-			if ($@) {
-				vprint "creation error: ".format_err($@)."\n";
-			}
-			@ret = $kmdb->fetch($princ);
+			vprint "creation error: ".format_err($@)."\n";
 		}
-
-		write_keys_kt($user, $lib, $princ, undef, @ret);
-
-		next if $action ne 'change';
-
-		# Find the max kvno:
-		my $kvno = -1;
-		for my $i (@ret) {
-			$kvno = $i->{kvno} if $i->{kvno} > $kvno;
-		}
-		die "Could not determine max kvno" if $kvno == -1;
-
-		if (!defined($etypes)) {
-			my %enctypes;
-
-			for my $i (grep {$_->{kvno} == $kvno} @ret) {
-				$enctypes{$i->{enctype}}=1;
-			}
-			$etypes = [ keys %enctypes ];
-		}
-		$kvno++;
-		my @keys = mk_keys(@$etypes);
-		write_keys_kt($user, $lib, $princ, $kvno, @keys);
-		$kmdb->change($princ, $kvno, \@keys);
+		@ret = $kmdb->fetch($strprinc);
 	}
+
+	write_keys_kt($user, $lib, $strprinc, undef, @ret);
+
+	return if $action ne 'change';
+
+	# Find the max kvno:
+	my $kvno = -1;
+	for my $i (@ret) {
+		$kvno = $i->{kvno} if $i->{kvno} > $kvno;
+	}
+	die "Could not determine max kvno" if $kvno == -1;
+
+	if (!defined($etypes)) {
+		my %enctypes;
+
+		for my $i (grep {$_->{kvno} == $kvno} @ret) {
+			$enctypes{$i->{enctype}}=1;
+		}
+		$etypes = [ keys %enctypes ];
+	}
+	$kvno++;
+	my @keys = mk_keys(@$etypes);
+	write_keys_kt($user, $lib, $strprinc, $kvno, @keys);
+	$kmdb->change($strprinc, $kvno, \@keys);
 }
 
-sub install_bootstrap_key {
-	my ($user, $kmdb, $got_tickets, $xrealm, $action, $lib, @princs) = @_;
+sub bootstrap_host_key {
+	my ($kmdb, $action, $lib, $client, $user, $princ) = @_;
+	my $strprinc = unparse_princ($princ);
+	my $realm = $princ->[0];
 
-	vprint "installing a bootstrap key.\n";
+	vprint "bootstrapping a host key.\n";
 
-	if ($user ne 'root') {
-		die "bootstrap/RANDOM may only be installed by root.";
-	}
+	#
+	# If we are here, then we've decided that we are bootstrapping
+	# which means that we need to obtain credentials for a bootstrap
+	# principal of the form bootstrap/*@REALM.  We find one and try
+	# it.  If it fails to connect, we try another one.  We presume
+	# that we're failing because the princ doesn't exist in the KDC
+	# but perhaps we should test the result of Krb5Admin::Client->new()
+	# to see if there was another reason...
 
-	if (@princs > 1) {
-		die "If you specify bootstrap/RANDOM then it must " .
-		    "be only argument.";
+	my @keys = get_keys();
+	my @clientprincs = get_princs(@keys);
+	my @clients = grep
+	    { my ($r, $n) = parse_princ($_); $r eq $realm && $n eq 'bootstrap' }
+	    @clientprincs;
+
+	for my $client (@clients) {
+		vprint "Trying to connect with $client creds.\n";
+		if (!defined($kmdb)) {
+			eval {
+				$kmdb = Krb5Admin::Client->new($client,
+				    { realm => $realm });
+				$kmdb->master();
+			};
+			if ($@) {
+				vprint "$client failed to connect: " .
+				    format_err($@) .  "\n";
+			}
+		}
+
+		last if defined($kmdb);
 	}
 
 	if (!defined($kmdb)) {
-		my $realm = $princs[0]->[0];
+		die "Can not connect to KDC.";
+	}
 
-		if (!$got_tickets) {
-			vprint "obtaining anonymous tickets.\n";
-			system {$KINIT} ($KINIT, @KINITOPT, '--anonymous');
-		}
+	vprint "Connected.\n";
+
+	my $ret;
+	eval { $ret = $kmdb->query($strprinc) };
+	my $err = $@;
+	if ($err) {
+		die $err if $action ne 'default';
+		vprint "query error: " . format_err($err) . "\n";
+		vprint "creating: $strprinc\n";
+	}
+
+	my $kvno = 0;
+	$kvno = max_kvno($ret->{keys})		if defined($ret);
+
+	my $gend = $kmdb->genkeys($strprinc, $kvno + 1, 18);
+	write_keys_kt($user, $lib, undef, undef, @{$gend->{keys}});
+	eval {
+		$kmdb->bootstrap_host_key($strprinc, $kvno + 1,
+		    public => $gend->{public}, enctypes => [18]);
+	};
+
+	#
+	# SUCCCESS!
+
+	return 0 if !$@;
+
+	vprint "bootstrapping host key failed: ". format_err($@) ."\n";
+
+	#
+	# so, if we failed then perhaps we do not have
+	# permissions?  If this is the case, then, well,
+	# we're connected to the KDC already, we can simply
+	# ask it what we need to do to make progress.
+
+	$ret = $kmdb->query_host(name => $princ->[2]);
+
+	if (!defined($ret)) {
+		die "Cannot determine the host's bootbinding.";
+	}
+
+	if (!defined($ret->{bootbinding})) {
+		die "$strprinc is not bound to any bootstrap id.";
+	}
+
+	vprint "host is actually bound to " . $ret->{bootbinding} . "\n";
+
+	$kmdb = Krb5Admin::Client->new($ret->{bootbinding}, {realm => $realm});
+
+	vprint "Connected as " . $ret->{bootbinding} . "\n";
+
+	$gend = $kmdb->genkeys($strprinc, $kvno + 1, 18);
+	write_keys_kt($user, $lib, undef, undef, @{$gend->{keys}});
+	$kmdb->bootstrap_host_key($strprinc, $kvno + 1,
+	    public => $gend->{public}, enctypes => [18]);
+}
+
+sub install_host_key {
+	my ($kmdb, $action, $lib, $client, $user, $princ) = @_;
+	my $f;
+
+	#
+	# host keys are just a little different than service keys.
+	# If we have host credentials, then we may very well just
+	# be able to use them.  If not, we must be bootstrapping and
+	# we call bootstrap_host_key() which is a tad more complex.
+
+	$f = \&install_key;
+	$f = \&install_key_legacy	if $use_fetch;
+
+	if ($kmdb) {
+		#
+		# XXXrcd: should we fail here or should we continue
+		#         to the bootstrapping code because we may
+		#         have lost our association with the KDC?
+
+		return &$f(@_);
+	}
+
+	return bootstrap_host_key(@_);
+}
+
+sub install_bootstrap_key {
+	my ($kmdb, $action, $lib, $client, $user, $princ) = @_;
+
+	vprint "installing a bootstrap key.\n";
+
+	if (!defined($kmdb)) {
+		my $realm = $princ->[0];
+
+		vprint "obtaining anonymous tickets.\n";
+		system {$KINIT} ($KINIT, @KINITOPT, '--anonymous');
+
 		vprint "connecting to $realm\'s KDC.\n";
 		$kmdb = Krb5Admin::Client->new(undef, { realm => $realm });
 	}
@@ -867,7 +955,81 @@ sub install_bootstrap_key {
 	$gend = $kmdb->regenkeys($gend, $binding);
 
 	write_keys_kt($user, undef, undef, undef, @{$gend->{keys}});
-	return 0;
+
+	# We must output the binding so that applications know what it is.
+	print $binding . "\n";
+}
+
+#
+# install_keys is a dispatcher that determines what to do with each
+# key.  It will [optionally] create a connexion to krb5_admind ($kmdb)
+# and dispatch to one of the functions that takes care of the particular
+# kind of key that we want.  install_keys expects to be called with
+# @princs being a list of parsed krb5 princs which have the same realm
+# and instance.  It will either toss an exception if something goes
+# horribly wrong or return an integral number of errors that were
+# encountered.
+
+sub install_keys {
+	my ($user, $kmdb, $got_tickets, $xrealm, $action, $lib, @princs) = @_;
+	my $realm = $princs[0]->[0];
+	my $inst  = $princs[0]->[2];
+	my $client;
+	my $errs = 0;
+	my $bootstrapping = 0;
+
+	if (!$got_tickets) {
+		$client = unparse_princ([defined($xrealm) ? $xrealm : $realm,
+		    "host", $inst]);
+	}
+
+	if (!defined($kmdb)) {
+		my $str = "";
+
+		$str .= "connecting to $princs[0]->[0]'s KDCs";
+		if (defined($client)) {
+			$str .= " using $client creds.";
+		}
+		vprint "$str\n";
+		eval {
+			$kmdb = Krb5Admin::Client->new($client,
+			    { realm => $realm });
+		};
+
+		vprint "Cannot connect to KDC: " . format_err($@) . "\n";
+	}
+
+	for my $princ (@princs) {
+		my $strprinc = unparse_princ($princ);
+
+		vprint "Focussing on $strprinc.\n";
+
+		my $f = \&install_key;
+
+		$f = \&install_key_legacy	if $use_fetch;
+		$f = \&install_host_key		if $princ->[1] eq 'host';
+
+		if ($princ->[1] eq 'bootstrap' && $princ->[2] eq 'RANDOM') {
+			$f = \&install_bootstrap_key;
+		}
+
+		eval {
+			&$f($kmdb, $action, $lib, $client, $user, $princ);
+		};
+		if ($@) {
+			print STDERR (format_err($@) . "\n");
+			print STDERR "Failed to install keys: $strprinc\n";
+			syslog('err', "Failed to install (%s) keys for %s " .
+			    "instance %s, %s", $action, $user,
+			    $strprinc, format_err($@));
+			$errs++;
+		} else {
+			syslog('info', "Installed (%s) keys for %s " .
+			    "instance %s", $action, $user, $strprinc);
+		}
+	}
+
+	return $errs;
 }
 
 #
@@ -891,23 +1053,11 @@ sub install_all_keys {
 	my $kt = get_kt($user);
 	my $errs = 0;
 
-	#
-	# First, we take care of the bootstrap principal requests.  We
-	# do not allow a bootstrap request to coexist with normal service
-	# principals.  We also require admin privs to make these requests.
-	# XXXrcd: we really need to refactor all of this code.  It has
-	# become quite cumbersome over the course of time.
-
-	if (grep { $_->[1] eq 'bootstrap' && $_->[2] eq 'RANDOM' } @princs) {
-		return install_bootstrap_key($user, $kmdb, $got_tickets,
-		    $xrealm, $action, $lib, @princs);
-	}
-
 	vprint "checking acls...\n";
 	check_acls($user, @princs);		# this will exit on failure.
 
 	for my $i (@princs) {
-		push(@{$instmap{$i->[0]}->{$i->[2]}}, unparse_princ($i));
+		push(@{$instmap{$i->[0]}->{$i->[2]}}, $i);
 	}
 
 	my @connexions;
@@ -918,36 +1068,16 @@ sub install_all_keys {
 		}
 	}
 
-	my $instkeys = \&install_keys;
+	my $instkeys = \&install_key;
 	if ($use_fetch) {
-		$instkeys = \&install_keys_legacy;
+		$instkeys = \&install_key_legacy;
 	}
 
 	for my $i (@connexions) {
 		vprint "installing keys for connexion $i->[0], $i->[1]...\n";
 
-		my $client;
-		if (!$got_tickets) {
-			$client = unparse_princ(
-			    [defined($xrealm) ? $xrealm : $i->[0],
-			    "host", $i->[1]]);
-		}
-		eval {
-			&$instkeys($kmdb, $action, $lib, $client, $user,
-			    @{$i->[2]});
-		};
-		if ($@) {
-			print STDERR (format_err($@) . "\n");
-			print STDERR "Failed to install keys @{$i->[2]}\n";
-			syslog('err', "Failed to install (%s) keys for %s " .
-			    "instance %s, %s", $action, $user,
-			    join(', ', @{$i->[2]}), format_err($@));
-			$errs++;
-		} else {
-			syslog('info', "Installed (%s) keys for %s " .
-			    "instance %s", $action, $user,
-			    join(', ', @{$i->[2]}));
-		}
+		$errs += install_keys($user, $kmdb, $got_tickets, $xrealm,
+		    $action, $lib, @{$i->[2]});
 	}
 
 	$kt =~ s/^WRFILE://;
