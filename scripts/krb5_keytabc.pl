@@ -867,11 +867,20 @@ sub bootstrap_host_key {
 	my $kvno = 0;
 	$kvno = max_kvno($ret->{keys})		if defined($ret);
 
-	my $gend = $kmdb->genkeys($strprinc, $kvno + 1, 18);
+	#
+	# XXX: With etype aliases in Heimdal, may not need the rev map...
+
+	my $etypes = $krb5_libs{$lib} if defined($lib);
+	if (!defined($etypes)) {
+		$etypes = $krb5_libs{$default_krb5_lib};
+	}
+	$etypes = [map { $revenctypes{$_} } @$etypes];
+
+	my $gend = $kmdb->genkeys($strprinc, $kvno + 1, @$etypes);
 	write_keys_kt($user, $lib, undef, undef, @{$gend->{keys}});
 	eval {
 		$kmdb->bootstrap_host_key($strprinc, $kvno + 1,
-		    public => $gend->{public}, enctypes => [18]);
+		    public => $gend->{public}, enctypes => $etypes);
 	};
 
 	#
@@ -906,7 +915,7 @@ sub bootstrap_host_key {
 	$gend = $kmdb->genkeys($strprinc, $kvno + 1, 18);
 	write_keys_kt($user, $lib, undef, undef, @{$gend->{keys}});
 	$kmdb->bootstrap_host_key($strprinc, $kvno + 1,
-	    public => $gend->{public}, enctypes => [18]);
+	    public => $gend->{public}, enctypes => $etypes);
 }
 
 sub install_host_key {
@@ -1372,18 +1381,18 @@ if ($action eq 'test') {
 
 	if ($errs == 1) {
 		syslog('err', "%s tested %s's keytab against %s resulting in ".
-		    "1 error", $invoking_user, $user, $krb5_lib);
+		    "1 error", $invoking_user, $user, $real_krb5_lib);
 		print STDERR "1 error was encountered.\n";
 		exit(1);
 	}
 	if ($errs > 0) {
 		syslog('err', "%s tested %s's keytab against %s resulting in ".
-		    "%d errors", $invoking_user, $user, $krb5_lib, $errs);
+		    "%d errors", $invoking_user, $user, $real_krb5_lib, $errs);
 		print STDERR "$errs errors were encountered.\n";
 		exit(1);
 	}
 	syslog('info', "%s tested %s's keytab against %s successfully",
-	    $invoking_user, $user, $krb5_lib);
+	    $invoking_user, $user, $real_krb5_lib);
 	vprint "No errors were encountered.\n";
 	exit(0);
 }
