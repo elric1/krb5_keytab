@@ -951,7 +951,7 @@ sub install_bootstrap_key {
 
 	my $gend = $kmdb->genkeys('bootstrap', 1, 18);
 	my $binding = $kmdb->create_bootstrap_id(public => $gend->{public},
-	    enctypes => [18]);
+	    enctypes => [18], realm => $realm);
 	$gend = $kmdb->regenkeys($gend, $binding);
 
 	write_keys_kt($user, undef, undef, undef, @{$gend->{keys}});
