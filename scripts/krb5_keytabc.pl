@@ -945,12 +945,11 @@ sub install_host_key {
 
 sub install_bootstrap_key {
 	my ($kmdb, $action, $lib, $client, $user, $princ) = @_;
+	my $realm = $princ->[0];
 
 	vprint "installing a bootstrap key.\n";
 
 	if (!defined($kmdb)) {
-		my $realm = $princ->[0];
-
 		vprint "obtaining anonymous tickets.\n";
 		system {$KINIT} ($KINIT, @KINITOPT, '--anonymous');
 
