@@ -61,6 +61,8 @@ our %revenctypes;
 for my $i (keys %enctypes) {
 	$revenctypes{$enctypes{$i}} = $i;
 }
+our $bootetype_name = "aes256-cts";
+our $bootetype_code = $revenctypes{$bootetype_name};
 
 BEGIN {
 	my ($fh, $ccname) = mkstemp("/tmp/krb5_keytab_ccXXXXXX");
@@ -80,7 +82,9 @@ END {
 our $ctx;
 our $krb5ccname;
 our $defrealm;
+our $defkt = "/etc/krb5.keytab";
 our $instances;
+my  $hostname = hostname();
 our @hostinsts = ();
 our $force = 0;
 our $ret;
@@ -320,13 +324,28 @@ sub unparse_princ {
 sub get_keys {
 	my ($kt) = @_;
 
-	$kt = "FILE:/etc/krb5.keytab" if !defined($kt) || $kt eq '';
+	$kt = "FILE:$defkt" if !defined($kt) || $kt eq '';
 	my @ktkeys = Krb5Admin::C::read_kt($ctx, $kt);
 
 	for my $i (@ktkeys) {
 		$i->{enctype} = $enctypes{$i->{enctype}};
 	}
 	@ktkeys;
+}
+
+#
+# Delete a principal (all keys) from a keytab file.
+
+sub del_kt_princ {
+	my ($strprinc, $kt) = @_;
+
+	$kt = "WRFILE:$defkt" if !defined($kt) || $kt eq '';
+	my @ktents = Krb5Admin::C::read_kt($ctx, $kt);
+
+	for my $ktent (@ktents) {
+		next if ($ktent->{"princ"} ne $strprinc);
+		Krb5Admin::C::kt_remove_entry($ctx, $kt, $ktent)
+	}
 }
 
 sub get_princs {
@@ -381,7 +400,7 @@ sub expand_princs {
 
 	if (!defined($pr->[2]) || $pr->[2] eq '') {
 		if ($pr->[1] eq 'host') {
-			@hostinsts = host_list(hostname()) if @hostinsts == 0;
+			@hostinsts = host_list($hostname) if @hostinsts == 0;
 			@insts = @hostinsts;
 		} else {
 			if (!exists($instances->{$realm}) ||
@@ -703,19 +722,34 @@ sub install_key {
 	#
 	# XXXrcd: If we aren't, well, the best thing that we can
 	#         do is either toss an exception or just warn and
-	#         change the keys.  For now, we die. Later, we
-	#         need to revisit this decision as it is not
-	#         obvious that it is correct (consider clusters.)
+	#         change the keys.  For now, we die, if the instance
+	#         is not the system fqdn (hostname is assumed to be
+	#         an fqdn). For other instances, we abort, as the
+	#         key may be shared among the members of a cluster.
 
 	if (!$err && $action eq 'default') {
 		my @ktkeys;
 		eval { @ktkeys = Krb5Admin::C::read_kt($ctx, $kt); };
+		@ktkeys = grep { $_->{"princ"} eq $strprinc } @ktkeys;
 
 		if (max_kvno(\@ktkeys) < max_kvno($ret->{keys})) {
-			die "You have lost a few keys...";
+			#
+			# If the instance matches the local hostname,
+			# just change the key, it should not be shared
+			# with other hosts.
+
+			if ($princ->[2] ne $hostname) {
+				die "The kvno for $strprinc is less than".
+				    " the KDCs, aborting as the key may".
+				    " be shared with other hosts. If the".
+				    " is not shared, you may use $0 -c".
+				    " to force a key change.\n";
+			}
+			$action = 'change';
+		} else {
+			vprint "The keys for $strprinc already exist.\n";
+			return 0;
 		}
-		vprint "The keys for $strprinc already exist.\n";
-		return 0;
 	}
 
 	my $kvno = 0;
@@ -826,23 +860,24 @@ sub bootstrap_host_key {
 	# but perhaps we should test the result of Krb5Admin::Client->new()
 	# to see if there was another reason...
 
-	my @keys = get_keys();
-	my @clientprincs = get_princs(@keys);
-	my @clients = grep
-	    { my ($r, $n) = parse_princ($_); $r eq $realm && $n eq 'bootstrap' }
-	    @clientprincs;
+	my $bootprinc;
+	foreach my $ktent (get_keys()) {
+		# Ignore bootstrap keys with an unexpected enctype.
+		next if ($ktent->{"enctype"} ne $bootetype_name);
+		my ($r, $n) = parse_princ($bootprinc = $ktent->{"princ"});
+		next if ($r ne $realm || $n ne 'bootstrap');
 
-	for my $client (@clients) {
-		vprint "Trying to connect with $client creds.\n";
+		vprint "Trying to connect with $bootprinc creds.\n";
 		if (!defined($kmdb)) {
 			eval {
-				$kmdb = Krb5Admin::Client->new($client,
+				$kmdb = Krb5Admin::Client->new($bootprinc,
 				    { realm => $realm });
 				$kmdb->master();
 			};
 			if ($@) {
-				vprint "$client failed to connect: " .
-				    format_err($@) .  "\n";
+				vprint "$bootprinc failed to connect" .
+				    " to a KDC for $realm: " .
+				    format_err($@) . "\n";
 			}
 		}
 
@@ -881,6 +916,12 @@ sub bootstrap_host_key {
 	eval {
 		$kmdb->bootstrap_host_key($strprinc, $kvno + 1,
 		    public => $gend->{public}, enctypes => $etypes);
+
+		#
+		# The KDC deleted the bootstrap principal, so we do
+		# likewise, but ignore errors, we got the main job done!
+
+		eval { del_kt_princ($bootprinc); };
 	};
 
 	#
@@ -902,20 +943,21 @@ sub bootstrap_host_key {
 		die "Cannot determine the host's bootbinding.";
 	}
 
-	if (!defined($ret->{bootbinding})) {
+	if (!defined($bootprinc = $ret->{bootbinding})) {
 		die "$strprinc is not bound to any bootstrap id.";
 	}
 
-	vprint "host is actually bound to " . $ret->{bootbinding} . "\n";
+	vprint "host is actually bound to " . $bootprinc . "\n";
 
-	$kmdb = Krb5Admin::Client->new($ret->{bootbinding}, {realm => $realm});
+	$kmdb = Krb5Admin::Client->new($bootprinc, {realm => $realm});
 
-	vprint "Connected as " . $ret->{bootbinding} . "\n";
+	vprint "Connected as " . $bootprinc . "\n";
 
-	$gend = $kmdb->genkeys($strprinc, $kvno + 1, 18);
+	$gend = $kmdb->genkeys($strprinc, $kvno + 1, $bootetype_code);
 	write_keys_kt($user, $lib, undef, undef, @{$gend->{keys}});
 	$kmdb->bootstrap_host_key($strprinc, $kvno + 1,
 	    public => $gend->{public}, enctypes => $etypes);
+	eval { del_kt_princ($bootprinc); };
 }
 
 sub install_host_key {
@@ -957,9 +999,9 @@ sub install_bootstrap_key {
 		$kmdb = Krb5Admin::Client->new(undef, { realm => $realm });
 	}
 
-	my $gend = $kmdb->genkeys('bootstrap', 1, 18);
+	my $gend = $kmdb->genkeys('bootstrap', 1, $bootetype_code);
 	my $binding = $kmdb->create_bootstrap_id(public => $gend->{public},
-	    enctypes => [18], realm => $realm);
+	    enctypes => [$bootetype_code], realm => $realm);
 	$gend = $kmdb->regenkeys($gend, $binding);
 
 	write_keys_kt($user, undef, undef, undef, @{$gend->{keys}});
