@@ -993,7 +993,10 @@ sub install_bootstrap_key {
 
 	if (!defined($kmdb)) {
 		vprint "obtaining anonymous tickets.\n";
-		system {$KINIT} ($KINIT, @KINITOPT, '--anonymous');
+		# The default realm may not vend anon tickets, use the
+		# target realm!
+		#
+		system {$KINIT} ($KINIT, @KINITOPT, '--anonymous', $realm);
 
 		vprint "connecting to $realm\'s KDC.\n";
 		$kmdb = Krb5Admin::Client->new(undef, { realm => $realm });
