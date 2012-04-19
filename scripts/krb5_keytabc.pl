@@ -56,6 +56,7 @@ our %enctypes = (
 	0x17	=> 'rc4-hmac',
 	0x10	=> 'des3-cbc-sha1',
 	0x01	=> 'des-cbc-crc',
+	0x03	=> 'des-cbc-md5',
 );
 our %revenctypes;
 for my $i (keys %enctypes) {
@@ -137,8 +138,8 @@ sub is_subset {
 }
 
 sub enctypes_require_admin {
-	! scalar(grep { $_ =~ /^aes[12]/ } @_) ||
-	  scalar(grep { $_ eq 'des-cbc-crc' } @_);
+	! scalar(grep { $_ =~ m{^aes[12]} } @_) ||
+	  scalar(grep { $_ =~ m{^des-cbc-} } @_);
 }
 
 sub lib_requires_admin {
@@ -147,8 +148,8 @@ sub lib_requires_admin {
 
 sub lib_better {
 	my ($a, $b) = @_;
-	my @a = grep { $_ ne 'des-cbc-crc' } @{$krb5_libs{$a}};
-	my @b = grep { $_ ne 'des-cbc-crc' } @{$krb5_libs{$b}};
+	my @a = grep { $_ !~ m{^des-cbc-} } @{$krb5_libs{$a}};
+	my @b = grep { $_ !~ m{^des-cbc-} } @{$krb5_libs{$b}};
 
 	return  1	if is_subset(\@a, \@b);
 	return -1	if is_subset(\@b, \@a);
