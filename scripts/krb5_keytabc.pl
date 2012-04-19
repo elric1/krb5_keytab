@@ -864,7 +864,8 @@ sub bootstrap_host_key {
 	my $bootprinc;
 	foreach my $ktent (get_keys()) {
 		# Ignore bootstrap keys with an unexpected enctype.
-		next if ($ktent->{"enctype"} ne $bootetype_name);
+		next if (!defined($ktent->{"enctype"}) ||
+		    $ktent->{"enctype"} ne $bootetype_name);
 		my ($r, $n) = parse_princ($bootprinc = $ktent->{"princ"});
 		next if ($r ne $realm || $n ne 'bootstrap');
 
