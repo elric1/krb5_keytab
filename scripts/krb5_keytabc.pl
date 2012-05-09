@@ -775,7 +775,7 @@ sub install_key {
 		$etypes = $krb5_libs{$default_krb5_lib};
 		$etypes = [map { $revenctypes{$_} } @$etypes];
 	}
-	my $gend = $kmdb->genkeys($strprinc, $kvno + 1, @$etypes);
+	my $gend = $kmdb->genkeys('change', $strprinc, $kvno + 1, @$etypes);
 	write_keys_kt($user, $lib, undef, undef, @{$gend->{'keys'}});
 	&$func($kmdb, $strprinc, @kvno_arg, 'public' => $gend->{'public'},
 	    'enctypes' => $etypes);
@@ -913,7 +913,8 @@ sub bootstrap_host_key {
 	}
 	$etypes = [map { $revenctypes{$_} } @$etypes];
 
-	my $gend = $kmdb->genkeys($strprinc, $kvno + 1, @$etypes);
+	my $gend = $kmdb->genkeys('bootstrap_host_key', $strprinc, $kvno + 1,
+	    @$etypes);
 	write_keys_kt($user, $lib, undef, undef, @{$gend->{keys}});
 	eval {
 		$kmdb->bootstrap_host_key($strprinc, $kvno + 1,
@@ -955,7 +956,8 @@ sub bootstrap_host_key {
 
 	vprint "Connected as " . $bootprinc . "\n";
 
-	$gend = $kmdb->genkeys($strprinc, $kvno + 1, $bootetype_code);
+	$gend = $kmdb->genkeys('bootstrap_host_key', $strprinc, $kvno + 1,
+	    @$etypes);
 	write_keys_kt($user, $lib, undef, undef, @{$gend->{keys}});
 	$kmdb->bootstrap_host_key($strprinc, $kvno + 1,
 	    public => $gend->{public}, enctypes => $etypes);
@@ -1004,7 +1006,8 @@ sub install_bootstrap_key {
 		$kmdb = Krb5Admin::Client->new(undef, { realm => $realm });
 	}
 
-	my $gend = $kmdb->genkeys('bootstrap', 1, $bootetype_code);
+	my $gend = $kmdb->genkeys('create_bootstrap_id', 'bootstrap', 1,
+	    $bootetype_code);
 	my $binding = $kmdb->create_bootstrap_id(public => $gend->{public},
 	    enctypes => [$bootetype_code], realm => $realm);
 	$gend = $kmdb->regenkeys($gend, $binding);
