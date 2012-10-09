@@ -26,6 +26,27 @@
 
 #define MAXVEES	9
 
+#define OPT_WITHOUTARG(x) do {						\
+		if (x ## flag ) {					\
+			new_argv[i++] = strdup("-" #x);			\
+		}							\
+		if (i >= new_argc) {					\
+			fprintf(stderr, "Memory allocation error.\n");	\
+			exit(1);					\
+		}							\
+	} while (0)
+
+#define OPT_WITHARG(x, var)	do {					\
+		if (var) {						\
+			new_argv[i++] = strdup("-" #x);			\
+			new_argv[i++] = var;				\
+		}							\
+		if (i >= new_argc) {					\
+			fprintf(stderr, "Memory allocation error.\n");	\
+			exit(1);					\
+		}							\
+	} while (0)
+
 void
 usage(void)
 {
@@ -199,44 +220,22 @@ main(int argc, char **argv)
 	new_argv[i++] = strdup("-u");
 	new_argv[i++] = get_user();
 
-	if (libs) {
-		new_argv[i++] = strdup("-L");
-		new_argv[i++] = libs;
-	}
+	OPT_WITHARG(L, libs);
+	OPT_WITHARG(W, winxrealm);
+	OPT_WITHARG(X, xrealm);
+	OPT_WITHARG(p, user);
 
-	if (winxrealm) {
-		new_argv[i++] = strdup("-W");
-		new_argv[i++] = winxrealm;
-	}
+	OPT_WITHOUTARG(A);
+	OPT_WITHOUTARG(F);
+	OPT_WITHOUTARG(Z);
+	OPT_WITHOUTARG(c);
+	OPT_WITHOUTARG(f);
+	OPT_WITHOUTARG(g);
+	OPT_WITHOUTARG(l);
+	OPT_WITHOUTARG(q);
+	OPT_WITHOUTARG(t);
+	OPT_WITHOUTARG(w);
 
-	if (xrealm) {
-		new_argv[i++] = strdup("-X");
-		new_argv[i++] = xrealm;
-	}
-
-	if (user) {
-		new_argv[i++] = strdup("-p");
-		new_argv[i++] = user;
-	}
-
-	if (Aflag)
-		new_argv[i++] = strdup("-A");
-	if (Fflag)
-		new_argv[i++] = strdup("-F");
-	if (Zflag)
-		new_argv[i++] = strdup("-Z");
-	if (cflag)
-		new_argv[i++] = strdup("-c");
-	if (fflag)
-		new_argv[i++] = strdup("-f");
-	if (gflag)
-		new_argv[i++] = strdup("-g");
-	if (lflag)
-		new_argv[i++] = strdup("-l");
-	if (qflag)
-		new_argv[i++] = strdup("-q");
-	if (tflag)
-		new_argv[i++] = strdup("-t");
 	if (vflag) {
 		char	*vees;
 
@@ -245,13 +244,19 @@ main(int argc, char **argv)
 		vees = strdup("-vvvvvvvvv");
 		vees[vflag + 1] = '\0';
 		new_argv[i++] = vees;
-	}
-	if (wflag) {
-		new_argv[i++] = strdup("-w");
+		if (i >= new_argc) {
+			fprintf(stderr, "Memory allocation error.\n");
+			exit(1);
+		}
 	}
 
-	while (argc--)
+	while (argc--) {
 		new_argv[i++] = *argv++;
+		if (i >= new_argc) {
+			fprintf(stderr, "Memory allocation error.\n");
+			exit(1);
+		}
+	}
 
 	new_argv[i++] = NULL;
 
