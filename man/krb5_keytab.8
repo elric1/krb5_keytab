@@ -17,7 +17,7 @@
 .Op Ar princ ...
 .Nm
 .Fl c
-.Op Fl AFZfv
+.Op Fl AFUZfv
 .Op Fl p Ar user
 .Op Fl L Ar lib
 .Op Ar princ ...
@@ -70,6 +70,11 @@ If the instance is missing then all hostname instances are appended,
 i.e.: if one supplies ``foo'' or ``foo@REALM'' on a machine with hostnames
 bar and baz then it will expand to the principals foo/bar@REALM and
 foo/baz@REALM.
+Note that this will not append the cluster names as
+not all services are expected to run on all cluster addresses.
+If
+.Fl U
+is specified then the username is prepended to the hostname.
 .El
 .Pp
 .Nm
@@ -125,6 +130,10 @@ The default is mitkrb5/1.4 when creating new keys.
 When changing keys, the current encryption types will be preserved unless the
 .Fl L Ar library
 option is specified.
+.It Fl U
+prepends the username to the hostname used to construct default
+instances where they are not specified.
+I.e. host.example.com becomes username.host.example.com.
 .It Fl W Ar winprinc
 specifies that
 .Nm

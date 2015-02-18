@@ -98,6 +98,7 @@ main(int argc, char **argv)
 	int		  new_argc;
 	int		  Aflag = 0;
 	int		  Fflag = 0;
+	int		  Uflag = 0;
 	int		  Zflag = 0;
 	int		  cflag = 0;
 	int		  fflag = 0;
@@ -113,7 +114,7 @@ main(int argc, char **argv)
 	char		 *winxrealm = NULL;
 	char		 *xrealm = NULL;
 
-	while ((c = getopt(argc, argv, "AFL:RW:X:Zcfglqp:rtvw?")) != -1)
+	while ((c = getopt(argc, argv, "AFL:RUW:X:Zcfglqp:rtvw?")) != -1)
 		switch (c) {
 		case 'A':
 			Aflag = 1;
@@ -128,6 +129,9 @@ main(int argc, char **argv)
 				usage();
 			}
 			libs = strdup(optarg);
+			break;
+		case 'U':
+			Uflag = 1;
 			break;
 		case 'W':
 			if (winxrealm) {
@@ -210,8 +214,8 @@ main(int argc, char **argv)
 	if (xrealm)
 		new_argc += 2;
 
-	new_argc += Aflag + Fflag + Zflag + cflag + fflag + gflag;
-	new_argc += lflag + qflag + tflag + vflag + wflag;
+	new_argc += Aflag + Fflag + Uflag + Zflag + cflag + fflag;
+	new_argc += gflag + lflag + qflag + tflag + vflag + wflag;
 	new_argc += 10; /*XXXrcd: safety*/
 
 	i = 0;
@@ -227,6 +231,7 @@ main(int argc, char **argv)
 
 	OPT_WITHOUTARG(A);
 	OPT_WITHOUTARG(F);
+	OPT_WITHOUTARG(U);
 	OPT_WITHOUTARG(Z);
 	OPT_WITHOUTARG(c);
 	OPT_WITHOUTARG(f);

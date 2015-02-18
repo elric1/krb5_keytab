@@ -188,7 +188,7 @@ my $krb5_lib;
 my $xrealm;
 
 # XXXrcd: getopt error?
-getopts('AFL:RW:X:Zcfglqp:rtu:vw?', \%opts) or usage($kt);
+getopts('AFL:RUW:X:Zcfglqp:rtu:vw?', \%opts) or usage($kt);
 
 usage($kt) if defined($opts{'?'});
 
@@ -219,6 +219,7 @@ $kt->set_opt('invoking_user', $opts{u});
 $kt->set_opt('verbose', defined($opts{v}) ? 1 : 0);
 $kt->set_opt('force', defined($opts{f}) ? 1 : 0);
 $kt->set_opt('force', defined($opts{F}) ? 2 : 0);
+$kt->set_opt('userqual', defined($opts{U}) ? 1 : 0);
 $kt->set_opt('local', defined($opts{Z}) ? 1 : 0);
 $kt->set_opt('kadmin', defined($opts{A}) ? 1 : 0);
 $kt->set_opt('xrealm', $opts{X});
