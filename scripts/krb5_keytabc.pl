@@ -11,7 +11,7 @@ use Krb5Admin::Krb5Host::Local;
 use strict;
 use warnings;
 
-our $KRB5_KEYTAB_CONFIG = '../etc/krb5_keytab.conf';
+our $KRB5_KEYTAB_CONFIG = '@@KRB5_KEYTAB_CONF@@';
 
 sub pretty_print_libs {
 	my ($fh, @libs) = @_;
