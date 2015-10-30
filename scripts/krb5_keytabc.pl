@@ -158,9 +158,6 @@ EOM
 do $KRB5_KEYTAB_CONFIG if -f $KRB5_KEYTAB_CONFIG;
 print $@ if $@;
 
-# XXXrcd: testing:
-@admin_users = qw/elric yyrkoon/;
-
 my $kt = Krb5Admin::Krb5Host::Local->new(
 	interactive		=> 1,
 	user2service		=> \%user2service,
