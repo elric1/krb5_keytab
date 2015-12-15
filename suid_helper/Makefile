@@ -1,11 +1,11 @@
 #
 #
 
-#WFLAGS=		-Werror
-#WFLAGS+=	-Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes
-#WFLAGS+=	-Wpointer-arith -Wno-traditional -Wreturn-type -Wswitch
-#WFLAGS+=	-Wno-shadow -Wcast-qual -Wwrite-strings -Wno-unused-parameter
-#WFLAGS+=	-Wsign-compare
+WFLAGS=		-Werror
+WFLAGS+=	-Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes
+WFLAGS+=	-Wpointer-arith -Wno-traditional -Wreturn-type -Wswitch
+WFLAGS+=	-Wno-shadow -Wwrite-strings -Wno-unused-parameter
+WFLAGS+=	-Wsign-compare
 
 all: krb5_keytab
 

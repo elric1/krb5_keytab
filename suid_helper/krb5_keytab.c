@@ -47,7 +47,7 @@
 		}							\
 	} while (0)
 
-void
+static void
 usage(void)
 {
 	const char	*new_argv[] = { KRB5_KEYTABC_PATH, "-?", NULL };
@@ -73,7 +73,7 @@ usage(void)
 	exit(1);
 }
 
-char *
+static char *
 get_user(void)
 {
 	struct passwd	*pwd;
