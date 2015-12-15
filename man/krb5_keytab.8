@@ -12,6 +12,7 @@
 .Op Fl AFUZfvw
 .Op Fl p Ar user
 .Op Fl L Ar lib
+.Op Fl R Ar ktroot
 .Op Fl X Ar xrealm
 .Op Fl W Ar winprinc
 .Op Ar princ ...
@@ -20,19 +21,23 @@
 .Op Fl AFUZfv
 .Op Fl p Ar user
 .Op Fl L Ar lib
+.Op Fl R Ar ktroot
 .Op Ar princ ...
 .Nm
 .Fl Ug
 .Op Fl v
+.Op Fl R Ar ktroot
 .Op Fl p Ar user
 .Op Ar princ ...
 .Nm
 .Fl l
 .Op Fl v
+.Op Fl R Ar ktroot
 .Op Fl p Ar user
 .Nm
 .Fl q
 .Op Fl Uv
+.Op Fl R Ar ktroot
 .Op Fl p Ar user
 .Op Ar princ ...
 .Nm
@@ -40,6 +45,7 @@
 .Op Fl Uv
 .Op Fl p Ar user
 .Op Fl L Ar lib
+.Op Fl R Ar ktroot
 .Op Ar princ ...
 .Sh DESCRIPTION
 .Nm
@@ -130,6 +136,11 @@ The default is mitkrb5/1.4 when creating new keys.
 When changing keys, the current encryption types will be preserved unless the
 .Fl L Ar library
 option is specified.
+.It Fl R Ar ktroot
+prepends
+.Ar ktroot
+to the beginning of all paths referring to keytabs.
+This option is only available to root.
 .It Fl U
 prepends the username to the hostname used to construct default
 instances where they are not specified.
