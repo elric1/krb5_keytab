@@ -114,7 +114,7 @@ main(int argc, char **argv)
 	char		 *winxrealm = NULL;
 	char		 *xrealm = NULL;
 
-	while ((c = getopt(argc, argv, "AFL:RUW:X:Zcfglqp:rtvw?")) != -1)
+	while ((c = getopt(argc, argv, "AFL:UW:X:Zcfglqp:tvw?")) != -1)
 		switch (c) {
 		case 'A':
 			Aflag = 1;
@@ -185,10 +185,6 @@ main(int argc, char **argv)
 			break;
 		case 'w':
 			wflag = 1;
-			break;
-		/* R and r are deprecated, but simply do nothing... */
-		case 'R':
-		case 'r':
 			break;
 		case '?':
 		default:

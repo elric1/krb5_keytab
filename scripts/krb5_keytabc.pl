@@ -185,7 +185,7 @@ my $krb5_lib;
 my $xrealm;
 
 # XXXrcd: getopt error?
-getopts('AFL:RUW:X:Zcfglqp:rtu:vw?', \%opts) or usage($kt);
+getopts('AFL:UW:X:Zcfglqp:tu:vw?', \%opts) or usage($kt);
 
 usage($kt) if defined($opts{'?'});
 
