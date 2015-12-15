@@ -108,13 +108,14 @@ main(int argc, char **argv)
 	int		  tflag = 0;
 	int		  vflag = 0;
 	int		  wflag = 0;
+	char		 *ktroot = NULL;
 	char		 *libs = NULL;
 	char		**new_argv;
 	char		 *user = NULL;
 	char		 *winxrealm = NULL;
 	char		 *xrealm = NULL;
 
-	while ((c = getopt(argc, argv, "AFL:UW:X:Zcfglqp:tvw?")) != -1)
+	while ((c = getopt(argc, argv, "AFL:R:UW:X:Zcfglqp:tvw?")) != -1)
 		switch (c) {
 		case 'A':
 			Aflag = 1;
@@ -129,6 +130,14 @@ main(int argc, char **argv)
 				usage();
 			}
 			libs = strdup(optarg);
+			break;
+		case 'R':
+			if (ktroot) {
+				fprintf(stderr, "can't specify -R multiple "
+				    "times.\n");
+				usage();
+			}
+			ktroot = strdup(optarg);
 			break;
 		case 'U':
 			Uflag = 1;
@@ -200,25 +209,30 @@ main(int argc, char **argv)
 		usage();
 	}
 
-	new_argc = argc + 3;
-	if (user)
-		new_argc += 2;
-	if (libs)
-		new_argc += 2;
-	if (winxrealm)
-		new_argc += 2;
-	if (xrealm)
-		new_argc += 2;
+	/*
+	 * We overestimate the size of new_argc to be safe, to ensure
+	 * that programming errors will not result in a buffer overflow.
+	 * The size is: the original argument size + 3 + all of the options
+	 * that we add.  And then we add ten just in case.
+	 */
 
+	new_argc = argc + 3;
 	new_argc += Aflag + Fflag + Uflag + Zflag + cflag + fflag;
 	new_argc += gflag + lflag + qflag + tflag + vflag + wflag;
-	new_argc += 10; /*XXXrcd: safety*/
+	new_argc += (ktroot?2:0) + (libs?2:0) + (winxrealm?2:0);
+	new_argc += (xrealm?2:0) + (user?2:0);
+	new_argc += 10;
 
 	i = 0;
 	new_argv = (char **)malloc((new_argc+1) * sizeof(*new_argv));
 	new_argv[i++] = strdup(KRB5_KEYTABC_PATH);
 	new_argv[i++] = strdup("-u");
 	new_argv[i++] = get_user();
+
+	if (getuid() == 0) {
+		/* Only pass -R if run by root. */
+		OPT_WITHARG(R, ktroot);
+	}
 
 	OPT_WITHARG(L, libs);
 	OPT_WITHARG(W, winxrealm);

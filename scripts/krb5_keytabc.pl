@@ -185,7 +185,7 @@ my $krb5_lib;
 my $xrealm;
 
 # XXXrcd: getopt error?
-getopts('AFL:UW:X:Zcfglqp:tu:vw?', \%opts) or usage($kt);
+getopts('AFL:R:UW:X:Zcfglqp:tu:vw?', \%opts) or usage($kt);
 
 usage($kt) if defined($opts{'?'});
 
@@ -220,6 +220,7 @@ $kt->set_opt('userqual', defined($opts{U}) ? 1 : 0);
 $kt->set_opt('local', defined($opts{Z}) ? 1 : 0);
 $kt->set_opt('kadmin', defined($opts{A}) ? 1 : 0);
 $kt->set_opt('xrealm', $opts{X});
+$kt->set_opt('ktroot', $opts{R});
 
 if (defined($opts{w}) && defined($opts{W})) {
 	die "-W and -w are mutally exclusive.\n";
