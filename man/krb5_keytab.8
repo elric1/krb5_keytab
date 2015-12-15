@@ -139,7 +139,8 @@ option is specified.
 .It Fl R Ar ktroot
 prepends
 .Ar ktroot
-to the beginning of all paths referring to keytabs.
+to the beginning of all paths referring to keytabs that we are managing.
+This will not affect the path to the keytab we use to authenticate to the KDC.
 This option is only available to root.
 .It Fl U
 prepends the username to the hostname used to construct default
