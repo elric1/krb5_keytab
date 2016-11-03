@@ -132,6 +132,11 @@ main(int argc, char **argv)
 			libs = strdup(optarg);
 			break;
 		case 'R':
+			if (getuid() != 0) {
+				fprintf(stderr, "The '-R' option is restricted "
+				    "to the superuser.\n");
+				usage();
+			}
 			if (ktroot) {
 				fprintf(stderr, "can't specify -R multiple "
 				    "times.\n");
@@ -229,11 +234,7 @@ main(int argc, char **argv)
 	new_argv[i++] = strdup("-u");
 	new_argv[i++] = get_user();
 
-	if (getuid() == 0) {
-		/* Only pass -R if run by root. */
-		OPT_WITHARG(R, ktroot);
-	}
-
+	OPT_WITHARG(R, ktroot);
 	OPT_WITHARG(L, libs);
 	OPT_WITHARG(W, winxrealm);
 	OPT_WITHARG(X, xrealm);
