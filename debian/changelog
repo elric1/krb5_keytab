@@ -1,3 +1,10 @@
+krb5keytab (0.3) unstable; urgency=low
+
+  * Most features moved to Krb5Admin::Krb5Host::Local
+  * Use -R to set ktroot as implemented in krb5_admin.
+  * Add a -U flag which prepends username to defaulted instances.
+  * Add a -Z flag to access a local Kerberos DB.
+
 krb5keytab (0.1-1) unstable; urgency=low
 
   * Initial release
