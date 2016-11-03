@@ -5,6 +5,8 @@ krb5keytab (0.3) unstable; urgency=low
   * Add a -U flag which prepends username to defaulted instances.
   * Add a -Z flag to access a local Kerberos DB.
 
+ -- Viktor <viktor@twosigma.com>  Thu, 03 Nov 2016 23:43:02 +0000
+
 krb5keytab (0.1-1) unstable; urgency=low
 
   * Initial release
