@@ -25,7 +25,7 @@ sub pretty_print_libs {
 sub format_install {
 
 	for my $line (@_) {
-		print "$line\n";
+		print "$line\n" if defined($line);
 	}
 }
 
