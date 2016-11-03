@@ -18,8 +18,4 @@ clean:
 krb5_keytabc: krb5_keytabc.pl
 	< krb5_keytabc.pl > krb5_keytabc				\
 	    sed -e '1s,.*,#!$(PERL),'					\
-		-e 's,@@KRB5_KEYTAB_CONF@@,$(KRB5_KEYTAB_CONF),'	\
-		-e 's,@@KINIT@@,$(KINIT),g'				\
-		-e 's,@@KINITOPT@@,$(KINITOPT),g'			\
-		-e 's,@@KLIST@@,$(KLIST),g'				\
-		-e 's,@@KDESTROY@@,$(KDESTROY),g'
+		-e 's,@@KRB5_KEYTAB_CONF@@,$(KRB5_KEYTAB_CONF),'
