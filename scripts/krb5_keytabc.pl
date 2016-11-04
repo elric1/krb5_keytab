@@ -103,6 +103,7 @@ our %krb5_lib_quirks = ();
 our $default_krb5_lib = ();
 our %user_libs = ();
 our $use_fetch = 0;
+our $ext_sync_func;
 
 #
 # Done: config file.
@@ -168,6 +169,7 @@ my $kt = Krb5Admin::Krb5Host::Local->new(
 	default_krb5_lib	=>  $default_krb5_lib,
 	user_libs		=> \%user_libs,
 	use_fetch		=>  $use_fetch,
+	ext_sync_func		=>  $ext_sync_func,
 );
 
 # The <invoking_user> parameter specifies the ``authenticated'' user when we
