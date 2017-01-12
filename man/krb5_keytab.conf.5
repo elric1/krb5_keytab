@@ -27,8 +27,13 @@ users cannot over-ride.
 .It $default_krb5_lib
 is the default Kerberos library version if it is not specified.
 .It $ext_sync_func 
-is a code ref to a function which is called each time a key has been
+is a code ref to a function which is called each time keys are
 written into a keytab.
+$ext_sync_func is called after the keys are written into the keytab
+but before the keys are updated on the KDC.
+$ext_sync_func is called under a lock which prevents
+.Xr krb5_keytab 8
+from trying to update the same user's keytab multiple times.
 It is provided with the arguments:
 .Bl -tag -width $princxxx
 .It $ctx
@@ -36,10 +41,19 @@ the Kerberos context from Krb5Admin::C which can be used to have
 a look at the keytab
 .It $kt
 the name of the keytab.
-.It $princ
-name of the principal that has been added.
-.It $kvno
-and the key version number of the keys that have been added.
+.It @keys
+the list of keys being updated.
+Each key is a hashref containing
+.Bl -tag -width xxxxxxxxxx
+.It princ
+the name of the principal
+.It kvno
+the key version number of the key
+.It enctype
+the encryption type as an integer
+.It key
+the key data
+.El
 .El
 .It %krb5_libs
 is a hash mapping Kerberos library versions to an array ref of supported
