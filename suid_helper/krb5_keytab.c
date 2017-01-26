@@ -289,6 +289,9 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
+	/* We ignore the return because it's not essential */
+	chdir("/");
+
 	/* XXXrcd: check this out a tad... */
 	execve(KRB5_KEYTABC_PATH, new_argv, NULL);
 
