@@ -13,6 +13,7 @@
 
 #include <sys/types.h>
 
+#include <err.h>
 #include <errno.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -95,6 +96,7 @@ main(int argc, char **argv)
 	extern int	  optind;
 	int		  c;
 	int		  i;
+	int		  ret;
 	int		  new_argc;
 	int		  Aflag = 0;
 	int		  Fflag = 0;
@@ -290,7 +292,9 @@ main(int argc, char **argv)
 	}
 
 	/* We ignore the return because it's not essential */
-	chdir("/");
+	ret = chdir("/");
+	if (ret == -1)
+		warn("Could not chdir(\"/\")");
 
 	/* XXXrcd: check this out a tad... */
 	execve(KRB5_KEYTABC_PATH, new_argv, NULL);
