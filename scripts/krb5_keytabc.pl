@@ -216,13 +216,15 @@ $action   = 'generate_keytab'	if defined($opts{g});
 
 $kt->set_opt('invoking_user', $opts{u});
 $kt->set_opt('verbose', defined($opts{v}) ? 1 : 0);
-$kt->set_opt('force', defined($opts{f}) ? 1 : 0);
-$kt->set_opt('force', defined($opts{F}) ? 2 : 0);
 $kt->set_opt('userqual', defined($opts{U}) ? 1 : 0);
 $kt->set_opt('local', defined($opts{Z}) ? 1 : 0);
 $kt->set_opt('kadmin', defined($opts{A}) ? 1 : 0);
 $kt->set_opt('xrealm', $opts{X});
 $kt->set_opt('ktroot', $opts{R});
+
+$kt->set_opt('force', 0);
+$kt->set_opt('force', 1)	if defined($opts{f});
+$kt->set_opt('force', 2)	if defined($opts{F});
 
 if (defined($opts{w}) && defined($opts{W})) {
 	die "-W and -w are mutally exclusive.\n";
