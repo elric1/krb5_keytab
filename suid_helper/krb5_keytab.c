@@ -219,11 +219,12 @@ main(int argc, char **argv)
 	/*
 	 * We overestimate the size of new_argc to be safe, to ensure
 	 * that programming errors will not result in a buffer overflow.
-	 * The size is: the original argument size + 3 + all of the options
-	 * that we add.  And then we add ten just in case.
+	 * The size is: the original argument size + 4 (we get four from:
+	 * +1 for null-terminated argv, + 3 more for "-u user --") + all
+	 * of the options that we add.  And then we add ten just in case.
 	 */
 
-	new_argc = argc + 3;
+	new_argc = argc + 4;
 	new_argc += Aflag + Fflag + Uflag + Zflag + cflag + fflag;
 	new_argc += gflag + lflag + qflag + tflag + vflag + wflag;
 	new_argc += (ktroot?2:0) + (libs?2:0) + (winxrealm?2:0);
@@ -267,6 +268,9 @@ main(int argc, char **argv)
 			exit(1);
 		}
 	}
+
+	/* Terminate option processing */
+	new_argv[i++] = strdup("--");
 
 	while (argc--) {
 		new_argv[i++] = *argv++;
