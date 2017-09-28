@@ -1,3 +1,9 @@
+krb5keytab (0.4) unstable; urgency=medium
+
+  * Don't forget to terminate options with --
+
+ -- Viktor <viktor@twosigma.com>  Thu, 03 Nov 2016 23:43:02 +0000
+
 krb5keytab (0.3) unstable; urgency=low
 
   * Most features moved to Krb5Admin::Krb5Host::Local
