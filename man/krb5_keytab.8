@@ -125,7 +125,10 @@ This requires that
 .Nm
 is run as root and will prompt for Kerberos admin credentials.
 .It Fl F
-will force the keytab to be rewritten and also implies
+will force the keytab to be rewritten as a new file and
+.Xr rename 2 Ns 'd
+into place.
+It also implies
 .Fl f .
 .It Fl L Ar lib
 specifies that the Kerberos libraries that the server uses are
@@ -175,7 +178,7 @@ change the keys.
 force contact with a KDC.
 By default,
 .Nm
-will not contact a KDC if the keytab tests correctly.
+will not contact a KDC if the keytab appears to be up to date and correct.
 This flag overrides this behaviour.
 Do not use this flag in any automated use, it is designed for
 human intervention only.
